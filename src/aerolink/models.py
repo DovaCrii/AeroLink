@@ -1,11 +1,12 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     String,
     Text,
@@ -17,11 +18,22 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from aerolink.db import Base
 
 
+def utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
 class DeviceKind(str, enum.Enum):
     CONTROLLER = "controller"
     AIRCRAFT = "aircraft"
     PAYLOAD = "payload"
     BATTERY = "battery"
+
+
+class UserRole(str, enum.Enum):
+    ADMINISTRATOR = "administrator"
+    OPERATIONS = "operations"
+    PILOT = "pilot"
+    VIEWER = "viewer"
 
 
 class Workspace(Base):
@@ -31,10 +43,32 @@ class Workspace(Base):
     slug: Mapped[str] = mapped_column(String(80), unique=True)
     name: Mapped[str] = mapped_column(String(150))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=utcnow
     )
 
     devices: Mapped[list["Device"]] = relationship(back_populates="workspace")
+
+
+class UserIdentity(Base):
+    __tablename__ = "user_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "provider", "subject", name="uq_identity_workspace_subject"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(50), default="entra")
+    subject: Mapped[str] = mapped_column(String(200), index=True)
+    display_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class Device(Base):
@@ -73,7 +107,7 @@ class RawMessage(Base):
     )
     topic: Mapped[str] = mapped_column(String(500), index=True)
     received_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, index=True
+        DateTime(timezone=True), default=utcnow, index=True
     )
     device_timestamp: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -81,6 +115,28 @@ class RawMessage(Base):
     qos: Mapped[int] = mapped_column(default=0)
     payload_json: Mapped[dict] = mapped_column(JSON)
     payload_sha256: Mapped[str] = mapped_column(String(64), index=True)
+
+
+class TelemetrySample(Base):
+    __tablename__ = "telemetry_samples"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    device_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("devices.id"), index=True)
+    flight_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("flight_sessions.id"), nullable=True, index=True
+    )
+    raw_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("raw_messages.id"), nullable=True, index=True
+    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    altitude_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ground_speed_mps: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sample_json: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class FlightSession(Base):
@@ -113,8 +169,31 @@ class FlightSession(Base):
     status: Mapped[str] = mapped_column(String(30), default="detected", index=True)
     summary_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=utcnow
     )
+
+
+class FlightEvidence(Base):
+    __tablename__ = "flight_evidence"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "sha256", name="uq_evidence_workspace_sha256"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    flight_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("flight_sessions.id"), nullable=True, index=True
+    )
+    object_key: Mapped[str] = mapped_column(String(500), unique=True)
+    original_filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    status: Mapped[str] = mapped_column(String(30), default="received", index=True)
 
 
 class IngestionException(Base):
@@ -129,7 +208,7 @@ class IngestionException(Base):
     message: Mapped[str] = mapped_column(Text)
     context_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
+        DateTime(timezone=True), default=utcnow
     )
 
 
@@ -146,5 +225,5 @@ class AuditEvent(Base):
     resource_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, index=True
+        DateTime(timezone=True), default=utcnow, index=True
     )
