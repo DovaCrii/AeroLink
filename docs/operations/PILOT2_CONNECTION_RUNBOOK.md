@@ -66,11 +66,13 @@ verificar la licencia y entregar a Pilot 2 los datos de conexión MQTT.
 2. En DJI Pilot 2, abrir el portal Cloud Services y cargar la página H5
    configurada para AeroLink.
 3. Abrir `https://<FQDN>/pilot2/diagnostic`. El resultado esperado es
-   **"JSBridge disponible"**; en un navegador normal se espera el mensaje
-   contrario.
-4. Completar la verificación de licencia y bootstrap MQTT en la página H5 de
-   AeroLink (AL-201/AL-202). Solo entonces comprobar que el control queda online
-   en el broker y que se registra un evento de conexión.
+   **"JSBridge disponible"** y **"Licencia DJI verificada"**. En un navegador
+   normal se espera que JSBridge no esté disponible. La página toma las
+   credenciales solo desde el entorno de ejecución, no las persiste ni las
+   registra; DJI requiere esas tres credenciales para la verificación H5.
+4. El siguiente hito, AL-202, entrega las credenciales MQTT por dispositivo y
+   carga el Cloud Module. Solo entonces comprobar que el control queda online en
+   el broker y que se registra un evento de conexión.
 5. Detener la prueba si falla el certificado, la licencia, autenticación MQTT o
    cualquier ACL. No realizar un despegue como parte de esta prueba.
 

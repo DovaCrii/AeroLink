@@ -94,8 +94,12 @@ def create_app() -> FastAPI:
 
     @app.get("/pilot2/diagnostic", include_in_schema=False)
     def pilot2_diagnostic() -> Response:
-        """Render a safe H5 diagnostic page for an eventual Pilot 2 Webview."""
-        return diagnostic_page()
+        """Render a diagnostic H5 page; the license is verified only in Pilot 2."""
+        return diagnostic_page(
+            settings.dji_app_id,
+            settings.dji_app_key,
+            settings.dji_app_license,
+        )
 
     @app.get("/api/v1", tags=["system"])
     def api_index() -> dict[str, str]:
