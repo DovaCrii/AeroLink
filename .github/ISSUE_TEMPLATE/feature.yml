@@ -1,0 +1,24 @@
+name: Feature
+description: Proponer una capacidad de AeroLink
+title: "[Feature] "
+labels:
+  - type:feature
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Alcance
+      description: Qué debe hacer y qué queda fuera.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencias y riesgos
+

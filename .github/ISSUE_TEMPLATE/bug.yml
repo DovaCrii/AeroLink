@@ -1,0 +1,25 @@
+name: Bug
+description: Reportar un defecto reproducible
+title: "[Bug] "
+labels:
+  - type:feature
+body:
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproducción
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Resultado actual
+    validations:
+      required: true
+
