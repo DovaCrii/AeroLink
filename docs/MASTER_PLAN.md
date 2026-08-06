@@ -16,6 +16,16 @@ telemetría y evidencia técnica sin depender de planillas de terreno.
 - La integración futura será un proyecto separado dentro del repositorio
   `DovaCrii/AeroControl`.
 
+## Flota interna confirmada
+
+- DJI Mavic 3 Enterprise (Mavic 3E).
+- DJI Matrice 4 Enterprise (Matrice 4E).
+- DJI Matrice 4 Thermal (Matrice 4T).
+
+La selección del piloto sigue pendiente: debe validarse la combinación exacta
+de aeronave, control, firmware y versión de DJI Pilot 2 contra los requisitos
+vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
+
 ## Milestones
 
 | Milestone | Resultado | Dependencia |
@@ -80,4 +90,3 @@ telemetría y evidencia técnica sin depender de planillas de terreno.
 - El mensaje original y la evidencia descargada conservan un hash verificable.
 - No hay acceso MQTT anónimo ni acceso cruzado entre dispositivos.
 - Se ejecuta y verifica una restauración completa.
-
