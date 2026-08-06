@@ -31,6 +31,11 @@ misiones.
 
 ## Estado
 
+Sondas operativas iniciales:
+
+- `GET /health` confirma que el proceso API responde.
+- `GET /ready` confirma que PostgreSQL está disponible antes de aceptar trabajo
+  operativo.
+
 Fase M0: preparación del repositorio, inventario de hardware y validación de
 conectividad pública para HTTPS/MQTTS.
-
