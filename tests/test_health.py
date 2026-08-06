@@ -72,3 +72,12 @@ def test_metrics_exposes_http_request_signals() -> None:
     assert response.headers["content-type"].startswith("text/plain")
     assert "aerolink_http_requests_total" in response.text
     assert "aerolink_http_request_duration_seconds" in response.text
+
+
+def test_pilot2_diagnostic_page_is_safe_to_open_without_a_controller() -> None:
+    response = client.get("/pilot2/diagnostic")
+
+    assert response.status_code == 200
+    assert "JSBridge" in response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert "Content-Security-Policy" in response.headers
