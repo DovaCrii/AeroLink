@@ -22,6 +22,9 @@ telemetría y evidencia técnica sin depender de planillas de terreno.
 - DJI Matrice 4 Enterprise (Matrice 4E).
 - DJI Matrice 4 Thermal (Matrice 4T).
 
+El levantamiento se realiza con la [plantilla de inventario DJI](operations/DJI_FLEET_INVENTORY_TEMPLATE.md),
+sin incorporar seriales ni secretos al repositorio.
+
 La selección del piloto sigue pendiente: debe validarse la combinación exacta
 de aeronave, control, firmware y versión de DJI Pilot 2 contra los requisitos
 vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
