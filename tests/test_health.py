@@ -56,3 +56,19 @@ def test_readiness_returns_503_when_database_is_unavailable(monkeypatch) -> None
 
     assert response.status_code == 503
     assert response.json()["detail"] == "database unavailable"
+
+
+def test_request_id_is_returned_and_can_be_provided_by_caller() -> None:
+    response = client.get("/health", headers={"X-Request-ID": "trace-123"})
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "trace-123"
+
+
+def test_metrics_exposes_http_request_signals() -> None:
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "aerolink_http_requests_total" in response.text
+    assert "aerolink_http_request_duration_seconds" in response.text

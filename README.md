@@ -36,6 +36,8 @@ Sondas operativas iniciales:
 - `GET /health` confirma que el proceso API responde.
 - `GET /ready` confirma que PostgreSQL está disponible antes de aceptar trabajo
   operativo.
+- `GET /metrics` expone señales Prometheus para el scraper local; cada respuesta
+  incluye `X-Request-ID` para correlacionar los logs JSON.
 
 Fase M0: preparación del repositorio, inventario de hardware y validación de
 conectividad pública para HTTPS/MQTTS.
