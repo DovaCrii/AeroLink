@@ -3,7 +3,8 @@ from aerolink.preflight import pilot2_readiness
 
 
 def test_preflight_reports_blockers_for_default_development_settings() -> None:
-    statuses = {check.name: check.status for check in pilot2_readiness(Settings())}
+    settings = Settings(_env_file=None)
+    statuses = {check.name: check.status for check in pilot2_readiness(settings)}
 
     assert statuses["https_endpoint"] == "blocker"
     assert statuses["dji_app_license"] == "blocker"

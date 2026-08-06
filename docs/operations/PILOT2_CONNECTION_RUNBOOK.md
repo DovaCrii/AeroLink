@@ -88,6 +88,14 @@ Para abrir esta misma página desde DJI Pilot 2 se requiere una URL HTTPS
 pública aprobada para el entorno. Ese paso debe revisarse por separado antes
 de publicar cualquier valor de la aplicación DJI fuera de la red local.
 
+### Prueba pública de conectividad sin licencia
+
+El servicio `pilot2-connectivity` escucha solamente en
+`http://127.0.0.1:8092/` y no carga el archivo `.env`. Puede publicarse de
+forma temporal para confirmar que Pilot 2 alcanza una página H5 y detecta
+JSBridge. No conecta el equipo a Cloud API, no valida una licencia y no
+entrega MQTT ni telemetría.
+
 5. El siguiente hito, AL-202, entrega las credenciales MQTT por dispositivo y
    carga el Cloud Module. Antes de esa segunda prueba se debe ejecutar:
 
