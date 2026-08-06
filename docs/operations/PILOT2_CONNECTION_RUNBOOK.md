@@ -57,6 +57,9 @@ verificar la licencia y entregar a Pilot 2 los datos de conexión MQTT.
    curl http://127.0.0.1:8081/ready
    ```
 
+   Dentro de Docker, AeroLink apunta automáticamente al servicio `postgres`;
+   no se debe cambiar esa conexión a `127.0.0.1`.
+
 6. Configurar el listener TLS de EMQX en 8883, sin MQTT anónimo y con ACL por
    dispositivo. Mantener el dashboard de EMQX fuera de Internet. El certificado
    debe incluir la cadena intermedia completa.
