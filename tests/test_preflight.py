@@ -25,3 +25,22 @@ def test_preflight_accepts_complete_pilot2_test_configuration(monkeypatch) -> No
     checks = pilot2_readiness(settings)
 
     assert all(check.status == "pass" for check in checks)
+
+
+def test_license_scope_does_not_require_mqtt_or_certificate_files() -> None:
+    settings = Settings(
+        app_base_url="https://pilot.aerolink.example",
+        dji_app_id="app-id",
+        dji_app_key="app-key",
+        dji_app_license="license",
+    )
+
+    checks = pilot2_readiness(settings, scope="license")
+
+    assert [check.name for check in checks] == [
+        "https_endpoint",
+        "dji_app_id",
+        "dji_app_key",
+        "dji_app_license",
+    ]
+    assert all(check.status == "pass" for check in checks)

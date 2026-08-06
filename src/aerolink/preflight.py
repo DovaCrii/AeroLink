@@ -1,5 +1,6 @@
 """Offline readiness checks for a controlled DJI Pilot 2 connection test."""
 
+import argparse
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ class Check:
     message: str
 
 
-def pilot2_readiness(settings: Settings) -> list[Check]:
+def pilot2_readiness(settings: Settings, *, scope: str = "full") -> list[Check]:
     """Validate configuration only; this never contacts DJI, a controller or MQTT."""
     checks: list[Check] = []
     parsed_url = urlparse(settings.app_base_url)
@@ -45,6 +46,9 @@ def pilot2_readiness(settings: Settings) -> list[Check]:
                 f"{name.upper()} must be supplied from the DJI Developer Cloud API app.",
             )
         )
+
+    if scope == "license":
+        return checks
 
     mqtt_host = settings.mqtt_public_host or ""
     mqtt_is_public = mqtt_host not in {"", "127.0.0.1", "localhost"}
@@ -79,7 +83,17 @@ def pilot2_readiness(settings: Settings) -> list[Check]:
 
 
 def main() -> int:
-    checks = pilot2_readiness(get_settings())
+    parser = argparse.ArgumentParser(
+        description="Validate offline requirements for a controlled DJI Pilot 2 test."
+    )
+    parser.add_argument(
+        "--scope",
+        choices=("license", "full"),
+        default="full",
+        help="license checks H5 and DJI license only; full also checks MQTTS.",
+    )
+    args = parser.parse_args()
+    checks = pilot2_readiness(get_settings(), scope=args.scope)
     print(json.dumps([asdict(check) for check in checks], indent=2))
     return 1 if any(check.status == "blocker" for check in checks) else 0
 

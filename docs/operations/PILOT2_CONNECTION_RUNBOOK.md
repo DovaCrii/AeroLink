@@ -41,10 +41,11 @@ verificar la licencia y entregar a Pilot 2 los datos de conexión MQTT.
    MQTT_TLS_KEY_FILE=<ruta-local-a-la-clave>
    ```
 
-4. Ejecutar el preflight, que no abre conexiones externas ni muestra secretos:
+4. Ejecutar el preflight de licencia, que no abre conexiones externas ni
+   muestra secretos:
 
    ```powershell
-   uv run python aerolink_preflight.py
+   uv run python aerolink_preflight.py --scope license
    ```
 
    Debe terminar sin elementos `blocker`.
@@ -70,9 +71,17 @@ verificar la licencia y entregar a Pilot 2 los datos de conexión MQTT.
    normal se espera que JSBridge no esté disponible. La página toma las
    credenciales solo desde el entorno de ejecución, no las persiste ni las
    registra; DJI requiere esas tres credenciales para la verificación H5.
-4. El siguiente hito, AL-202, entrega las credenciales MQTT por dispositivo y
-   carga el Cloud Module. Solo entonces comprobar que el control queda online en
-   el broker y que se registra un evento de conexión.
+4. Esta completa la **prueba 1: H5 + licencia**. No requiere abrir MQTTS ni
+   despegar la aeronave.
+5. El siguiente hito, AL-202, entrega las credenciales MQTT por dispositivo y
+   carga el Cloud Module. Antes de esa segunda prueba se debe ejecutar:
+
+   ```powershell
+   uv run python aerolink_preflight.py --scope full
+   ```
+
+   Solo cuando no existan bloqueadores se comprobará que el control queda online
+   en el broker y que se registra un evento de conexión.
 5. Detener la prueba si falla el certificado, la licencia, autenticación MQTT o
    cualquier ACL. No realizar un despegue como parte de esta prueba.
 
