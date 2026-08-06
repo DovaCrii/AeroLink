@@ -76,6 +76,18 @@ verificar la licencia y entregar a Pilot 2 los datos de conexión MQTT.
    registra; DJI requiere esas tres credenciales para la verificación H5.
 4. Esta completa la **prueba 1: H5 + licencia**. No requiere abrir MQTTS ni
    despegar la aeronave.
+### Diagnóstico local persistente
+
+El servicio de diagnóstico H5 se inicia junto con el resto del entorno al
+ejecutar `docker compose up --build --detach`. Abrir
+`http://127.0.0.1:8090/` para confirmar que aparece la página **AeroLink ·
+Diagnóstico DJI Pilot 2**. Es una superficie aislada: no expone OpenAPI,
+documentación, MQTT ni telemetría.
+
+Para abrir esta misma página desde DJI Pilot 2 se requiere una URL HTTPS
+pública aprobada para el entorno. Ese paso debe revisarse por separado antes
+de publicar cualquier valor de la aplicación DJI fuera de la red local.
+
 5. El siguiente hito, AL-202, entrega las credenciales MQTT por dispositivo y
    carga el Cloud Module. Antes de esa segunda prueba se debe ejecutar:
 
