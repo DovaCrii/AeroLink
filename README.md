@@ -40,4 +40,3 @@ Ver el detalle y las alternativas en `docs/ARCHITECTURE.md` → *Gate de red*.
 ## Licencia
 
 Uso interno. Sin licencia pública definida todavía.
-

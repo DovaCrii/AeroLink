@@ -19,8 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: uv lock --check
       - run: uv sync --all-groups
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
-

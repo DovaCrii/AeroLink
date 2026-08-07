@@ -16,6 +16,19 @@ telemetría y evidencia técnica sin depender de planillas de terreno.
 - La integración futura será un proyecto separado dentro del repositorio
   `DovaCrii/AeroControl`.
 
+## Flota interna confirmada
+
+- DJI Mavic 3 Enterprise (Mavic 3E).
+- DJI Matrice 4 Enterprise (Matrice 4E).
+- DJI Matrice 4 Thermal (Matrice 4T).
+
+El levantamiento se realiza con la [plantilla de inventario DJI](operations/DJI_FLEET_INVENTORY_TEMPLATE.md),
+sin incorporar seriales ni secretos al repositorio.
+
+La selección del piloto sigue pendiente: debe validarse la combinación exacta
+de aeronave, control, firmware y versión de DJI Pilot 2 contra los requisitos
+vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
+
 ## Milestones
 
 | Milestone | Resultado | Dependencia |
@@ -129,4 +142,3 @@ es continua y asíncrona, DJI exige ingreso público con credenciales propias, y
 una falla de ingesta no debe voltear el sistema que la operación usa a diario.
 Tampoco propone base de datos compartida ni acceso cruzado a filesystem — el
 ADR-0001 lo prohíbe y está bien así.
-
