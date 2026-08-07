@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from aerolink.config import get_settings
 from aerolink.db import engine
 from aerolink.observability import configure_logging
+from aerolink.pilot2 import diagnostic_page
 
 REQUEST_COUNT = Counter(
     "aerolink_http_requests_total",
@@ -90,6 +91,15 @@ def create_app() -> FastAPI:
     def metrics() -> Response:
         """Expose process metrics for a loopback-only Prometheus scraper."""
         return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/pilot2/diagnostic", include_in_schema=False)
+    def pilot2_diagnostic() -> Response:
+        """Render a diagnostic H5 page; the license is verified only in Pilot 2."""
+        return diagnostic_page(
+            settings.dji_app_id,
+            settings.dji_app_key,
+            settings.dji_app_license,
+        )
 
     @app.get("/api/v1", tags=["system"])
     def api_index() -> dict[str, str]:

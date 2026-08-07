@@ -2,12 +2,40 @@ services:
   api:
     build: .
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://aerolink:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/aerolink
     ports:
       - "127.0.0.1:8081:8000"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  pilot2-diagnostic:
+    build: .
+    env_file: .env
+    command: uvicorn aerolink.pilot2_diagnostic_server:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8090:8000"
+    restart: unless-stopped
+
+  pilot2-connectivity:
+    build: .
+    command: uvicorn aerolink.pilot2_connectivity_server:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8092:8000"
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://aerolink:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/aerolink
+    command: alembic upgrade head
+    depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+    restart: "no"
 
   postgres:
     image: postgres:16-alpine
