@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from aerolink.config import get_settings
 from aerolink.db import engine
+from aerolink.devices_api import router as devices_router
 from aerolink.observability import configure_logging
 from aerolink.pilot2 import diagnostic_page
 
@@ -108,6 +109,11 @@ def create_app() -> FastAPI:
             "version": "v1",
             "scope": "standalone-dji-gateway",
         }
+
+    # AL-107: the AeroControl integration surface. A router rather than another
+    # closure here -- it carries auth, a query and an audit write, which is more
+    # than main.py should hold.
+    app.include_router(devices_router)
 
     return app
 

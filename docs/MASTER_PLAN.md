@@ -57,6 +57,7 @@ vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
 - AL-104 EMQX con TLS, autenticación, rotación y ACL.
 - AL-105 Almacenamiento de evidencias, hashes, retención y backups.
 - AL-106 Health checks, métricas, logs y alertas.
+- AL-107 API de inventario de dispositivos para AeroControl (ADR-0002 fase 2, ADR-0003). Expone **sólo lo que AeroLink masterea** —baterías, payloads y topología de control—, nunca aeronaves: el padrón es de AeroControl (AL-R4), y pedirlo aquí responde 403. No depende del gate de red de AL-R1, que bloquea MQTTS y no HTTPS, así que es entregable antes que el resto de M1.
 
 ### M2 — DJI Pilot 2
 
