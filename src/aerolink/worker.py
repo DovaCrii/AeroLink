@@ -42,6 +42,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 import paho.mqtt.client as mqtt
+from prometheus_client import Counter, start_http_server
 from sqlalchemy.orm import Session
 
 from aerolink.config import Settings, get_settings
@@ -53,6 +54,31 @@ SessionFactory = Callable[[], Session]
 logger = logging.getLogger("aerolink.worker")
 
 DEFAULT_WORKSPACE_SLUG = "default"
+
+# AL-106. These live in the worker process, so they reset on restart and are
+# scraped from its own exposition, not the API's. The counts that must survive a
+# restart are read from the database instead -- see `metrics.py`.
+MESSAGES_PERSISTED = Counter(
+    "aerolink_worker_messages_persisted_total",
+    "Messages stored and then acknowledged to the relay.",
+)
+PERSIST_FAILURES = Counter(
+    "aerolink_worker_persist_failures_total",
+    "Messages the worker could not store, and therefore did not acknowledge.",
+)
+RELAY_CONNECTIONS = Counter(
+    "aerolink_worker_relay_connections_total",
+    "Successful connections to the relay, by whether it still had our session.",
+    ("session",),
+)
+RELAY_CONNECT_FAILURES = Counter(
+    "aerolink_worker_relay_connect_failures_total",
+    "Connection attempts the relay refused.",
+)
+RELAY_DISCONNECTIONS = Counter(
+    "aerolink_worker_relay_disconnections_total",
+    "Times the connection to the relay dropped.",
+)
 
 
 class WorkerConfigurationError(RuntimeError):
@@ -163,14 +189,17 @@ def build_client(
     def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties=None):
         if reason_code == 0:
             # `session_present` tells whether the relay still had this
-            # subscriber's queue. Logged because it is the only externally
-            # visible sign that the durability contract is holding: a restart
-            # that reports False lost whatever was queued for it.
+            # subscriber's queue. Logged and counted because it is the only
+            # externally visible sign that the durability contract is holding:
+            # after the first connection ever, `session="new"` means the relay
+            # lost whatever was queued for us. That is the alert to write.
+            session_present = getattr(flags, "session_present", None)
+            RELAY_CONNECTIONS.labels("resumed" if session_present else "new").inc()
             logger.info(
                 "relay_connected",
                 extra={
                     "topic": settings.mqtt_worker_topic,
-                    "session_present": getattr(flags, "session_present", None),
+                    "session_present": session_present,
                 },
             )
             # Re-subscribing on a resumed session is redundant but harmless,
@@ -178,6 +207,7 @@ def build_client(
             # our session) work without special-casing.
             client.subscribe(settings.mqtt_worker_topic, qos=1)
         else:
+            RELAY_CONNECT_FAILURES.inc()
             logger.error(
                 "relay_connect_failed", extra={"reason_code": str(reason_code)}
             )
@@ -185,6 +215,7 @@ def build_client(
     def on_disconnect(
         client: mqtt.Client, userdata, flags, reason_code, properties=None
     ):
+        RELAY_DISCONNECTIONS.inc()
         logger.warning("relay_disconnected", extra={"reason_code": str(reason_code)})
 
     def on_message(client: mqtt.Client, userdata, message: mqtt.MQTTMessage):
@@ -201,11 +232,15 @@ def build_client(
             # would achieve nothing -- paho logs it and moves on -- so it is
             # caught here to keep the network loop alive while the message
             # stays owed to us.
+            PERSIST_FAILURES.inc()
             logger.exception(
                 "raw_message_persist_failed", extra={"topic": message.topic}
             )
             return
         client.ack(message.mid, message.qos)
+        # Counted after the ack so the metric means "stored and acknowledged",
+        # which is the only state where the message is fully ours.
+        MESSAGES_PERSISTED.inc()
 
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
@@ -216,6 +251,10 @@ def build_client(
 def run() -> None:
     settings = get_settings()
     _require_relay_settings(settings)
+    if settings.worker_metrics_port:
+        # Its own exposition because this is its own process; loopback-only at
+        # the compose level, like every other port in this stack.
+        start_http_server(settings.worker_metrics_port)
     client = build_client(settings)
     logger.info(
         "worker_starting",

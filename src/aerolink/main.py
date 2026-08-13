@@ -1,15 +1,18 @@
 import logging
 import time
 import uuid
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from aerolink.config import get_settings
-from aerolink.db import engine
+from aerolink.db import engine, get_db
 from aerolink.devices_api import router as devices_router
+from aerolink.metrics import refresh_ingestion_metrics
 from aerolink.observability import configure_logging
 from aerolink.pilot2 import diagnostic_page
 
@@ -89,8 +92,17 @@ def create_app() -> FastAPI:
         return {"status": "ready", "dependency": "database"}
 
     @app.get("/metrics", include_in_schema=False)
-    def metrics() -> Response:
-        """Expose process metrics for a loopback-only Prometheus scraper."""
+    def metrics(session: Annotated[Session, Depends(get_db)]) -> Response:
+        """Expose process metrics for a loopback-only Prometheus scraper.
+
+        The ingestion gauges are refreshed here rather than collected
+        continuously: they are three cheap aggregates and a scrape is the only
+        moment anyone reads them. `get_db` builds the session without touching
+        the network, so a database that cannot answer lowers
+        `aerolink_ingestion_metrics_available` inside the refresh instead of
+        failing the scrape.
+        """
+        refresh_ingestion_metrics(lambda: session)
         return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/pilot2/diagnostic", include_in_schema=False)

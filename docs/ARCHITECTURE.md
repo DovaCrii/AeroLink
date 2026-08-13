@@ -45,6 +45,30 @@ inmutable para permitir una integración futura sin cambiar el histórico.
 - Secretos fuera de Git.
 - Evidencias con SHA-256 y auditoría de descarga.
 
+## Observabilidad
+
+Dos exposiciones Prometheus, porque son dos procesos:
+
+- `aerolink-api` en `/metrics`: latencia y conteo HTTP, más los indicadores de
+  ingesta leídos de la base de datos —mensajes almacenados, marca de tiempo del
+  último recibido, excepciones abiertas—. Sobreviven al reinicio del worker, que es
+  justo cuando alguien pregunta qué pasó. Si la base no responde, el scrape sigue
+  en pie y baja `aerolink_ingestion_metrics_available` a 0.
+- `aerolink-worker` en su propio puerto (`WORKER_METRICS_PORT`, publicado en
+  `127.0.0.1:8093` en desarrollo): mensajes persistidos y acusados, fallos de
+  persistencia, conexiones al relay etiquetadas por si el relay **conservaba
+  nuestra sesión**, y desconexiones.
+
+Las dos alertas que importan antes del primer vuelo: ingesta detenida
+(`time() - aerolink_raw_message_last_received_timestamp_seconds` sobre el umbral) y
+`aerolink_worker_relay_connections_total{session="new"}` creciendo después de la
+primera conexión — el relay perdió la cola que el worker daba por guardada.
+
+Las sondas fallan rápido a propósito: el motor de base de datos se abre con
+`connect_timeout`, porque sin él un host que no resuelve deja `/ready` y `/metrics`
+colgados el timeout completo del sistema (~130 s medidos) en vez de responder 503
+o `available 0`.
+
 ## Retención
 
 - Telemetría detallada: 90 días.

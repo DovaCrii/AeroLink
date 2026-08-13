@@ -65,7 +65,10 @@ def test_request_id_is_returned_and_can_be_provided_by_caller() -> None:
     assert response.headers["X-Request-ID"] == "trace-123"
 
 
-def test_metrics_exposes_http_request_signals() -> None:
+def test_metrics_exposes_http_request_signals(client) -> None:
+    """Uses the fixture client, not the module-level one: since AL-106 this
+    endpoint reads the database for the ingestion gauges, and the fixture is
+    what points that read at the test database instead of a real one."""
     response = client.get("/metrics")
 
     assert response.status_code == 200
