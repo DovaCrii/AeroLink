@@ -60,10 +60,9 @@ vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
 - AL-102 PostgreSQL, migraciones y modelo de datos.
 - AL-103 Microsoft Entra ID, roles y auditoría.
 - AL-104 Broker MQTTS con TLS, autenticación, rotación y ACL. Dividido por el
-  ADR-0004: (a) el cliente saliente que consume el relay —escrito, en la rama
-  `codex/relay-worker`— y (b) la configuración del relay externo, que no se puede
-  terminar sin proveedor elegido. Ya no es "EMQX en p340": ese servicio queda para
-  desarrollo local.
+  ADR-0004: (a) el cliente saliente que consume el relay —fusionado en el PR #37— y
+  (b) la configuración del relay externo, que no se puede terminar sin proveedor
+  elegido. Ya no es "EMQX en p340": ese servicio queda para desarrollo local.
 - AL-105 Almacenamiento de evidencias, hashes, retención y backups.
 - AL-106 Health checks, métricas, logs y alertas.
 - AL-107 API de inventario de dispositivos para AeroControl (ADR-0002 fase 2, ADR-0003). Expone **sólo lo que AeroLink masterea** —baterías, payloads y topología de control—, nunca aeronaves: el padrón es de AeroControl (AL-R4), y pedirlo aquí responde 403. No depende del gate de red de AL-R1, que bloquea MQTTS y no HTTPS, así que es entregable antes que el resto de M1.
@@ -190,18 +189,21 @@ Efecto en el orden del plan:
 
 ## Estado de ejecución — 2026-08-13
 
-Lo fusionado a `main`: esquema de datos completo, FastAPI con
-`/health`/`/ready`/`/metrics`, verificación de conectividad y de licencia DJI sin
-credenciales en runtime, docker-compose de desarrollo (PR #29, #31, #32, #33).
-`AL-101` y `AL-102` cerrados.
+Todo el trabajo escrito está **en `main`**; ya no hay ramas parqueadas.
 
-Trabajo escrito y **fuera de `main`**, cada uno esperando su PR:
-
-| Rama | Alcance | Estado |
+| Qué | Dónde | Estado |
 |---|---|---|
-| `codex/api-inventario-dispositivos` | `AL-107` — inventario de dispositivos para AeroControl (token de servicio, auditoría, 51 pruebas) | Empujada, sin PR |
-| `codex/relay-worker` | `AL-104` (a) — cliente MQTT saliente hacia el relay, persiste `RawMessage` con SHA-256 | Local, sin empujar |
+| Esquema de datos, FastAPI con `/health`/`/ready`/`/metrics`, diagnóstico H5 y preflight de licencia, docker-compose de desarrollo | PR #29, #31, #32, #33 | Fusionado; `AL-101` y `AL-102` cerrados |
+| `AL-107` — inventario de dispositivos para AeroControl (token de servicio, auditoría, 51 pruebas) | PR #35 | Fusionado; falta desplegarlo en p340 |
+| `AL-104` (a) — cliente MQTT saliente hacia el relay, persiste `RawMessage` con SHA-256 | PR #37 | Fusionado; no puede correr hasta que exista el relay |
 
-Decisiones abiertas que bloquean trabajo, no descubrimiento: `AL-R1` (proveedor
-del relay), `AL-R6` (identidad: Entra ID vs cuentas locales, bloquea `AL-103`) y
-`AL-002` (combinación DJI del piloto, con `AL-004` como dependencia externa).
+Lo que queda no es código sin escribir, son **tres decisiones y una sesión de
+prueba**:
+
+- `AL-R1` — proveedor del relay. **Puede quedar sin comprarse**: la Prueba 3 de la
+  [ruta de prueba](operations/RUTA_DE_PRUEBA.md) dice si Pilot 2 acepta WSS.
+- `AL-R6` — identidad (Entra ID vs cuentas locales); bloquea `AL-103`.
+- `AL-002` — combinación DJI del piloto. Es el insumo escaso: un control y ~90
+  minutos habilitan las Pruebas 1, 2 y 3 de una vez.
+- Desplegar `AL-107` en p340 y publicar el H5 por HTTPS. Nada de esto espera al
+  relay.

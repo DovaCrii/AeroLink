@@ -41,10 +41,12 @@ endpoint responde `503` y no expone nada.
 
 ## Estado actual
 
-**M0 en curso, con su gate resuelto en contra.** La base técnica ya está en
-`main`: esquema de datos completo, FastAPI con `/health`/`/ready`/`/metrics`,
-verificación de conectividad y de licencia DJI sin credenciales en tiempo de
-ejecución, y docker-compose de desarrollo con Postgres/EMQX/MinIO.
+**M0 en curso, con su gate resuelto en contra.** Todo lo escrito está en `main`:
+esquema de datos completo, FastAPI con `/health`/`/ready`/`/metrics`, verificación
+de conectividad y de licencia DJI sin credenciales en tiempo de ejecución,
+docker-compose de desarrollo con Postgres/EMQX/MinIO, el inventario de dispositivos
+para AeroControl (`AL-107`) y el cliente MQTT saliente hacia el relay
+(`AL-104` (a)).
 
 El riesgo más alto **se confirmó el 2026-08-10**: medido desde fuera, la IP
 pública de `p340` no acepta TCP entrante en 443 ni en 8883. Tailscale Funnel no
@@ -55,9 +57,8 @@ externo** con p340 como cliente saliente —ver
 proveedor. Mientras eso no se resuelva, M2 sigue bloqueado; lo que entra por
 HTTPS no lo está.
 
-El detalle de qué está fusionado, qué vive en ramas sin PR y qué decisiones
-bloquean trabajo está en el [plan maestro](docs/MASTER_PLAN.md) → *Estado de
-ejecución*.
+Lo que falta ya no es código sin escribir: son decisiones y una sesión de prueba.
+El detalle está en el [plan maestro](docs/MASTER_PLAN.md) → *Estado de ejecución*.
 
 **Lo que sí se puede probar ya:** las credenciales DJI existen y el preflight de
 licencia está en verde, así que la primera prueba real con un control —H5,

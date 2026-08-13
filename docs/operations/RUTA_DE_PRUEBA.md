@@ -36,7 +36,7 @@ publique. Eso lo dice la Prueba 2, y es justamente la información que se busca.
 
 | # | Prueba | Requiere | Qué información entrega | Costo |
 |---|---|---|---|---|
-| 0 | Inventario de baterías punta a punta | PR #35 fusionado y desplegado en p340, token de servicio | Si el contrato con AeroControl funciona sobre infraestructura real | Cero infra nueva |
+| 0 | Inventario de baterías punta a punta | `AL-107` desplegado en p340 (el código ya está en `main`), token de servicio | Si el contrato con AeroControl funciona sobre infraestructura real | Cero infra nueva |
 | 1 | H5 + JSBridge, sin licencia | Un control en mano, una URL HTTPS pública temporal | Si Pilot 2 carga una página nuestra y expone JSBridge | Cero |
 | 2 | H5 + **licencia verificada** | Prueba 1 + `APP_BASE_URL` público | **Si la licencia DJI sirve.** Es el gate real de M2 | Cero |
 | 3 | **Sonda WSS** | Misma sesión de la Prueba 2 | Si el relay del ADR-0004 es necesario o se puede evitar | Minutos |
@@ -49,7 +49,7 @@ Ya se verificó local el 2026-08-12: AeroControl sincronizó 2 baterías contra 
 endpoint real de AeroLink y enlazó una a `RPA-2002` por número de serie. Lo que falta
 es repetirlo contra p340 desplegado. Dos precondiciones que no son de AeroLink:
 
-- fusionar y desplegar `AL-107` (PR #35);
+- desplegar `AL-107` en p340 — el código ya está en `main` (PR #35);
 - correr `manage.py audit_serial_case` en p340 **antes** del primer sync real —
   cambiar `save()` no reescribe filas ya guardadas.
 

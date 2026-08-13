@@ -78,10 +78,9 @@ sobre el router; entonces el relay se vuelve innecesario, no incorrecto.
   mensajes: suscripción con QoS 1 y sesión persistente, y `AL-205`
   (reconexión/rotación) pasa a cubrir también este tramo.
 - **`AL-104` se divide.** Lo que era "EMQX con TLS, autenticación, rotación y
-  ACL" en p340 ahora son dos cosas: el cliente saliente (hecho, en la rama
-  `codex/relay-worker`) y la configuración del relay —ACL por dispositivo, sin
-  usuarios anónimos, credenciales rotables— que no se puede terminar sin
-  proveedor elegido.
+  ACL" en p340 ahora son dos cosas: el cliente saliente (fusionado en el PR #37) y
+  la configuración del relay —ACL por dispositivo, sin usuarios anónimos,
+  credenciales rotables— que no se puede terminar sin proveedor elegido.
 - **Costo recurrente** de un host externo, que antes no estaba en el plan.
 - El resto de M1 (`AL-102`, `AL-105`, `AL-106`, `AL-107`) **no depende de esto**:
   entra por HTTPS o no entra por la red en absoluto.
