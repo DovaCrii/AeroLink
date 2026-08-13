@@ -36,20 +36,37 @@ endpoint responde `503` y no expone nada.
 - [Arquitectura](docs/ARCHITECTURE.md) — servicios, datos propios y el gate de red.
 - [Seguimiento GitHub](docs/GITHUB_TRACKING.md) — convención de ramas, labels y project.
 - [ADR-0001](docs/adr/0001-standalone-boundary.md) — por qué AeroLink es independiente de AeroControl.
+- [ADR-0004](docs/adr/0004-broker-mqtt-en-relay-externo.md) — por qué el broker no vive en p340.
+- [Ruta de prueba](docs/operations/RUTA_DE_PRUEBA.md) — qué se puede probar hoy con un control, y qué información entrega cada prueba.
 
 ## Estado actual
 
-**M0 en curso** — validando viabilidad antes de construir sobre supuestos que
-después haya que deshacer. Ya hay una base técnica real (esquema de datos
-completo, FastAPI con `/health`/`/ready`/`/metrics`, verificación de
-conectividad y de licencia DJI sin credenciales en tiempo de ejecución,
-docker-compose con Postgres/EMQX/MinIO), pero **nada de eso está fusionado a
-`main` todavía** — vive en pull requests abiertos, sin revisar. El detalle
-exacto (cuáles, en qué quedaron y qué falta) está en el plan maestro.
+**M0 en curso, con su gate resuelto en contra.** Todo lo escrito está en `main`:
+esquema de datos completo, FastAPI con `/health`/`/ready`/`/metrics`, verificación
+de conectividad y de licencia DJI sin credenciales en tiempo de ejecución,
+docker-compose de desarrollo con Postgres/EMQX/MinIO, el inventario de dispositivos
+para AeroControl (`AL-107`) y el cliente MQTT saliente hacia el relay
+(`AL-104` (a)).
 
-El riesgo más alto identificado: **`p340` se expone por Tailscale Funnel, que
-sirve HTTPS pero no MQTTS (8883)** — sin resolver eso, M1 no puede avanzar.
-Ver el detalle y las alternativas en `docs/ARCHITECTURE.md` → *Gate de red*.
+El riesgo más alto **se confirmó el 2026-08-10**: medido desde fuera, la IP
+pública de `p340` no acepta TCP entrante en 443 ni en 8883. Tailscale Funnel no
+abre puertos ahí y sirve HTTPS solamente, así que **ningún control DJI puede
+alcanzar un broker alojado en p340**. El camino adoptado es un **relay MQTT
+externo** con p340 como cliente saliente —ver
+[ADR-0004](docs/adr/0004-broker-mqtt-en-relay-externo.md)— y falta elegir su
+proveedor. Mientras eso no se resuelva, M2 sigue bloqueado; lo que entra por
+HTTPS no lo está.
+
+Lo que falta ya no es código sin escribir: son decisiones y una sesión de prueba.
+El detalle está en el [plan maestro](docs/MASTER_PLAN.md) → *Estado de ejecución*.
+
+**Lo que sí se puede probar ya:** las credenciales DJI existen y el preflight de
+licencia está en verde, así que la primera prueba real con un control —H5,
+JSBridge y verificación de licencia— **no depende del relay**, sólo de publicar la
+página en una URL HTTPS pública, que es justo lo que Funnel ya hace. En la misma
+sesión se puede sondear si Pilot 2 acepta MQTT sobre WSS y, si lo acepta, el relay
+deja de ser necesario. La escalera completa está en la
+[ruta de prueba](docs/operations/RUTA_DE_PRUEBA.md).
 
 ## Licencia
 
