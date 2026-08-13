@@ -12,9 +12,23 @@ verificable y un inventario de equipos en línea. Reemplaza la dependencia de
 capturas de pantalla y planillas de terreno para dejar constancia de qué se
 voló, con qué equipo y cuándo.
 
-**Qué no hace (a propósito):** no envía comandos ni controla la aeronave, no
-genera ni publica misiones DJI, y **no se integra con AeroControl todavía** —
-es un sistema separado por diseño (ver [ADR-0001](docs/adr/0001-standalone-boundary.md)).
+**Qué no hace (a propósito):** no envía comandos ni controla la aeronave, y no
+genera ni publica misiones DJI. Sigue siendo un sistema separado de AeroControl
+por diseño (ver [ADR-0001](docs/adr/0001-standalone-boundary.md)): despliegues
+independientes, sin base de datos compartida y sin que ninguno escriba en el
+dominio del otro.
+
+**Lo único que comparte con AeroControl** es un contrato HTTP versionado y de
+sólo lectura: `GET /api/v1/devices/?kind=battery` expone el inventario que
+AeroLink masterea —baterías, payloads, topología de control— para que AeroControl
+lo refleje como evidencia ISO 7.1.3. Las aeronaves **no** se exponen: ese padrón
+es de AeroControl y pedirlo aquí responde `403`. Ver
+[ADR-0002](docs/adr/0002-contrato-coexistencia-aerocontrol.md) (contrato),
+[ADR-0003](docs/adr/0003-token-de-servicio-para-integracion.md) (credencial) y
+`AeroControl/docs/dev/plan-integracion-aerolink.md` (el plan conjunto).
+
+Requiere configurar `SERVICE_TOKEN` y `SERVICE_TOKEN_WORKSPACE`; sin ellos el
+endpoint responde `503` y no expone nada.
 
 ## Documentación y seguimiento
 

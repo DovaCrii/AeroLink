@@ -10,6 +10,11 @@
 - Los payloads DJI reales se reemplazan por fixtures anonimizados.
 - El gate mínimo antes de fusionar será CI verde, pruebas, lint, formato y
   análisis de dependencias.
-- La integración con AeroControl está fuera de alcance hasta crear un plan
-  separado en su propio repositorio.
+- La integración con AeroControl requiere un plan separado en su propio
+  repositorio, como estableció el ADR-0001. **Ese plan existe desde el
+  2026-08-12**: `AeroControl/docs/dev/plan-integracion-aerolink.md`, con el
+  contrato técnico en su ADR-0002 y el de este lado en `docs/adr/0003`. Lo
+  habilitado es **únicamente** lo que ese plan enumera (hoy `AL-107`, el
+  inventario de dispositivos); cualquier otra superficie de integración sigue
+  fuera de alcance hasta que el plan la incluya.
 

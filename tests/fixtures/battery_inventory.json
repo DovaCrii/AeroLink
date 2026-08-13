@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "serial_number": "TB65DEMO0001",
+      "model": "TB65",
+      "status": "active",
+      "cycle_count": 120,
+      "health_percent": 93,
+      "firmware_version": "03.00.05",
+      "aircraft_serial": "AIRDEMO0001"
+    },
+    {
+      "serial_number": "TB65DEMO0002",
+      "model": "TB65",
+      "status": "retired",
+      "cycle_count": 480,
+      "health_percent": 61,
+      "firmware_version": "03.00.05"
+    }
+  ],
+  "count": 2
+}

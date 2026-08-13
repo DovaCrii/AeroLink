@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     telemetry_retention_days: int = 90
     evidence_retention_days: int = 1825
+    # AL-107 / ADR-0003: the service credential AeroControl presents to read the
+    # device inventory. Unset by default and the endpoint fails closed (503),
+    # so a deployment that never configures it exposes nothing.
+    service_token: str | None = None
+    service_token_workspace: str | None = None
+    service_token_subject: str = "svc:aerocontrol"
 
     model_config = SettingsConfigDict(
         env_file=".env",
