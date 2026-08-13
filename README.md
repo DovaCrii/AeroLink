@@ -37,6 +37,7 @@ endpoint responde `503` y no expone nada.
 - [Seguimiento GitHub](docs/GITHUB_TRACKING.md) — convención de ramas, labels y project.
 - [ADR-0001](docs/adr/0001-standalone-boundary.md) — por qué AeroLink es independiente de AeroControl.
 - [ADR-0004](docs/adr/0004-broker-mqtt-en-relay-externo.md) — por qué el broker no vive en p340.
+- [Ruta de prueba](docs/operations/RUTA_DE_PRUEBA.md) — qué se puede probar hoy con un control, y qué información entrega cada prueba.
 
 ## Estado actual
 
@@ -57,6 +58,14 @@ HTTPS no lo está.
 El detalle de qué está fusionado, qué vive en ramas sin PR y qué decisiones
 bloquean trabajo está en el [plan maestro](docs/MASTER_PLAN.md) → *Estado de
 ejecución*.
+
+**Lo que sí se puede probar ya:** las credenciales DJI existen y el preflight de
+licencia está en verde, así que la primera prueba real con un control —H5,
+JSBridge y verificación de licencia— **no depende del relay**, sólo de publicar la
+página en una URL HTTPS pública, que es justo lo que Funnel ya hace. En la misma
+sesión se puede sondear si Pilot 2 acepta MQTT sobre WSS y, si lo acepta, el relay
+deja de ser necesario. La escalera completa está en la
+[ruta de prueba](docs/operations/RUTA_DE_PRUEBA.md).
 
 ## Licencia
 

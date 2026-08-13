@@ -48,7 +48,10 @@ vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
 - AL-003 Validación de ingreso público p340, DNS, TLS, HTTPS y MQTT. **Medido el
   2026-08-10: no hay ingreso TCP a la IP pública, ni 443 ni 8883** (ver *Estado
   del gate de red* al final de este plan).
-- AL-004 Registro de aplicación y licencia DJI Cloud API.
+- AL-004 Registro de aplicación y licencia DJI Cloud API. **Las tres credenciales ya
+  existen** (preflight `--scope license` en verde el 2026-08-13); esto no está esperando
+  a DJI. Se cierra cuando la Prueba 2 confirme que DJI las acepta para el dominio que se
+  publique — ver [ruta de prueba](operations/RUTA_DE_PRUEBA.md).
 - AL-005 ADR de arquitectura, amenazas, retención y respaldos.
 
 ### M1 — Plataforma
@@ -181,7 +184,9 @@ Efecto en el orden del plan:
   `AL-107` son entregables antes de resolver el relay.
 - Si `AL-002`/`AL-204` confirman que el firmware de la flota admite MQTT sobre
   WSS, el relay se vuelve innecesario. Vale la pena verificarlo antes de pagar
-  por infraestructura.
+  por infraestructura: la [ruta de prueba](operations/RUTA_DE_PRUEBA.md) la deja
+  como Prueba 3, dentro de una sesión con un control que ya se necesita para las
+  Pruebas 1 y 2.
 
 ## Estado de ejecución — 2026-08-13
 
