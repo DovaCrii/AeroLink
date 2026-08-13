@@ -26,6 +26,22 @@ services:
       - "127.0.0.1:8092:8000"
     restart: unless-stopped
 
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://aerolink:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/aerolink
+    command: python -m aerolink.worker
+    # AL-003/AL-R1: p340 has no inbound path from the public internet, so
+    # the broker DJI Pilot 2 connects to cannot live here (see the `emqx`
+    # service below). This is only an outbound client of an external relay
+    # -- MQTT_PUBLIC_HOST/MQTT_WORKER_USERNAME/MQTT_WORKER_PASSWORD in .env
+    # must point at that relay, not at this docker-compose stack.
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   migrate:
     build: .
     env_file: .env
@@ -52,6 +68,9 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Not the broker DJI Pilot 2 connects to (AL-003 confirmed p340 has no
+  # inbound path from the internet) -- kept loopback-only for local
+  # development/testing against `worker` above, not for production.
   emqx:
     image: emqx:5.8
     ports:
