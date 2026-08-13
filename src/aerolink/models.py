@@ -95,6 +95,62 @@ class Device(Base):
     workspace: Mapped[Workspace] = relationship(back_populates="devices")
 
 
+class DeviceTopology(Base):
+    """Which controller flew which aircraft with which payload, as *observed* (AL-203).
+
+    Keyed on **serials**, not on local UUIDs. The serial is the only key present in
+    DJI's telemetry, AeroControl's padrón and the DGAC certificate (AL-R3), and a
+    UUID minted here would be resolvable by nobody else. The `*_device_id` columns
+    are a convenience for when the serial happens to match a known `Device`; they
+    are nullable because AL-R4 requires the opposite failure mode from the obvious
+    one — **an unresolvable serial is kept, never discarded**. Losing the link is
+    recoverable later; losing the observation is not.
+
+    One row per distinct combination, with `first_seen_at`/`last_seen_at` instead of
+    one row per message: the fleet has a handful of airframes and a payload swap is
+    news, while ten thousand identical rows are not.
+    """
+
+    __tablename__ = "device_topologies"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "gateway_serial",
+            "aircraft_serial",
+            "payload_serial",
+            name="uq_topology_workspace_combination",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id"), index=True
+    )
+    # The controller/gateway DJI reports as the origin of the messages.
+    gateway_serial: Mapped[str] = mapped_column(String(120), index=True)
+    aircraft_serial: Mapped[str] = mapped_column(String(120), index=True)
+    # Empty string rather than NULL: it is part of the unique constraint, and in
+    # SQL two NULLs are never equal, so a nullable column would let the same
+    # payload-less combination be inserted without limit.
+    payload_serial: Mapped[str] = mapped_column(String(120), default="")
+    gateway_device_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("devices.id"), nullable=True
+    )
+    aircraft_device_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("devices.id"), nullable=True
+    )
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+    # "dji" for something the telemetry reported, anything else for a human
+    # correction -- so a fix entered by hand is never mistaken for an observation.
+    source: Mapped[str] = mapped_column(String(30), default="dji", index=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class RawMessage(Base):
     __tablename__ = "raw_messages"
 

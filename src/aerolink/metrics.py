@@ -22,13 +22,13 @@ where to look.
 from __future__ import annotations
 
 import logging
-from datetime import UTC
 
 from prometheus_client import Gauge
 from sqlalchemy import func
 
 from aerolink.db import SessionLocal
 from aerolink.models import IngestionException, RawMessage
+from aerolink.timeutils import as_utc
 
 logger = logging.getLogger("aerolink.metrics")
 
@@ -77,15 +77,12 @@ def refresh_ingestion_metrics(session_factory=SessionLocal) -> bool:
 
 
 def _as_unix_seconds(value) -> float:
-    """0 for "never", and UTC assumed for a naive timestamp.
+    """0 for "never"; `as_utc` for everything else.
 
-    Postgres returns these timezone-aware; sqlite (the test database) drops the
-    timezone. Assuming UTC is correct for both because every write goes through
-    `datetime.now(UTC)` -- the alternative, a naive `.timestamp()`, would be
-    read as local time and drift the gauge by the machine's offset.
+    Without the coercion a naive timestamp would be read as local time and drift
+    the gauge by the machine's offset. See `timeutils.as_utc` for why the driver
+    decides whether it arrives naive.
     """
     if value is None:
         return 0.0
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.timestamp()
+    return as_utc(value).timestamp()

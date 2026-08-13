@@ -27,7 +27,7 @@ AeroControl.
 Existen como tabla y tienen quién las escriba:
 
 - `Workspace`, `Device` (AL-107), `RawMessage` (el worker), `FlightEvidence`
-  (AL-105) y `AuditEvent`.
+  (AL-105), `DeviceTopology` (AL-203) y `AuditEvent`.
 
 Existen como tabla y **todavía sin escritor**, con el trabajo que lo traerá:
 
@@ -38,8 +38,12 @@ Existen como tabla y **todavía sin escritor**, con el trabajo que lo traerá:
   abiertas; hoy son cero porque nada las crea, y el primer escritor honesto
   aparece con la normalización de AL-302.
 
-`DeviceTopology` **no existe**: ni modelo, ni tabla, ni referencias. Llega con
-AL-203, que es donde se registra la topología control–aeronave–payload.
+La topología (`DeviceTopology`, AL-203) se guarda **por serial**, no por UUID local:
+el serial es la única llave que existe también en el padrón de AeroControl y en el
+certificado DGAC (AL-R3). Los enlaces a `Device` son opcionales a propósito — una
+observación cuyo serial no calza con ningún dispositivo conocido **se guarda igual**
+y queda en cola para que una persona la resuelva contra el certificado, porque
+AL-R4 prohíbe descartar telemetría por no poder resolver la aeronave.
 
 Los identificadores son UUID. Cada sesión conserva un identificador externo
 inmutable para permitir una integración futura sin cambiar el histórico.
