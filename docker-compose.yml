@@ -37,6 +37,10 @@ services:
     # service below). This is only an outbound client of an external relay
     # -- MQTT_PUBLIC_HOST/MQTT_WORKER_USERNAME/MQTT_WORKER_PASSWORD in .env
     # must point at that relay, not at this docker-compose stack.
+    ports:
+      # AL-106: the worker's own metrics -- separate process, separate
+      # exposition. Loopback-only, like everything else here.
+      - "127.0.0.1:8093:9100"
     depends_on:
       migrate:
         condition: service_completed_successfully

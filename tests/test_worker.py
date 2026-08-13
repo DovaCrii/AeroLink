@@ -1,6 +1,7 @@
 import hashlib
 
 import pytest
+from prometheus_client import REGISTRY
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -24,6 +25,19 @@ def sqlite_session_factory():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+def _counter(name: str, labels: dict[str, str] | None = None) -> float:
+    """Counters are process-global, so every assertion here is a delta: reading
+    an absolute value would couple these tests to their execution order."""
+    return REGISTRY.get_sample_value(name, labels or {}) or 0.0
+
+
+class _ConnectFlags:
+    """paho's v2 connect flags, reduced to the field the callback reads."""
+
+    def __init__(self, *, session_present: bool) -> None:
+        self.session_present = session_present
 
 
 def _relay_settings(**overrides) -> Settings:
@@ -152,12 +166,14 @@ def test_on_message_acknowledges_only_after_the_message_is_stored(
     client = build_client(_relay_settings(), session_factory=sqlite_session_factory)
     recorder = _RecordingClient()
     message = _FakeMessage()
+    before = _counter("aerolink_worker_messages_persisted_total")
 
     client.on_message(recorder, None, message)
 
     with sqlite_session_factory() as session:
         assert session.query(RawMessage).count() == 1
     assert recorder.acked == [(message.mid, message.qos)]
+    assert _counter("aerolink_worker_messages_persisted_total") == before + 1
 
 
 def test_on_message_does_not_acknowledge_a_message_it_could_not_store():
@@ -173,7 +189,33 @@ def test_on_message_does_not_acknowledge_a_message_it_could_not_store():
 
     client = build_client(_relay_settings(), session_factory=unreachable_database)
     recorder = _RecordingClient()
+    before = _counter("aerolink_worker_persist_failures_total")
 
     client.on_message(recorder, None, _FakeMessage())  # must not raise
 
     assert recorder.acked == []
+    assert _counter("aerolink_worker_persist_failures_total") == before + 1
+
+
+def test_a_connection_records_whether_the_relay_still_had_our_session(
+    sqlite_session_factory,
+):
+    """`session="new"` after the first connection ever is the alert (AL-106):
+    the relay lost the queue this worker was counting on."""
+    client = build_client(_relay_settings(), session_factory=sqlite_session_factory)
+    resumed_before = _counter(
+        "aerolink_worker_relay_connections_total", {"session": "resumed"}
+    )
+    new_before = _counter("aerolink_worker_relay_connections_total", {"session": "new"})
+
+    client.on_connect(client, None, _ConnectFlags(session_present=True), 0)
+    client.on_connect(client, None, _ConnectFlags(session_present=False), 0)
+
+    assert (
+        _counter("aerolink_worker_relay_connections_total", {"session": "resumed"})
+        == resumed_before + 1
+    )
+    assert (
+        _counter("aerolink_worker_relay_connections_total", {"session": "new"})
+        == new_before + 1
+    )

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # hardcoded: AL-204 captures real fixtures before this is trusted as
     # exact, and a relay's ACL may namespace it differently.
     mqtt_worker_topic: str = "thing/product/+/#"
+    # AL-106: the worker is a separate process from the API, so its counters
+    # cannot appear on the API's /metrics. It exposes its own, loopback-only in
+    # compose. Set to 0 to disable the exposition entirely.
+    worker_metrics_port: int = 9100
     log_level: str = "INFO"
     telemetry_retention_days: int = 90
     evidence_retention_days: int = 1825
