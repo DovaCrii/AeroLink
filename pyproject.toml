@@ -12,6 +12,11 @@ dependencies = [
     "alembic>=1.15,<2",
     "prometheus-client>=0.21,<1",
     "paho-mqtt>=2.1,<3",
+    # AL-105: S3 API rather than the MinIO SDK. MinIO is what runs today, but the
+    # evidence has a 5-year retention and the ADR-0004 relay already showed that
+    # "it stays on p340" is not a safe assumption; boto3 keeps a real S3 as a
+    # configuration change instead of a rewrite.
+    "boto3>=1.35,<2",
 ]
 
 [build-system]

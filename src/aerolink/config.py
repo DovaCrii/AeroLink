@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     telemetry_retention_days: int = 90
     evidence_retention_days: int = 1825
+    # AL-105: where the evidence objects live. Read through the S3 API, so the
+    # endpoint is MinIO on p340 today and could be a real bucket without code
+    # changes. Unset credentials fail closed: `build_evidence_store` refuses to
+    # build a client rather than falling back to an anonymous one.
+    object_storage_endpoint: str = "http://127.0.0.1:9000"
+    object_storage_bucket: str = "aerolink-evidence"
+    object_storage_access_key: str | None = None
+    object_storage_secret_key: str | None = None
+    object_storage_region: str = "us-east-1"
     # AL-107 / ADR-0003: the service credential AeroControl presents to read the
     # device inventory. Unset by default and the endpoint fails closed (503),
     # so a deployment that never configures it exposes nothing.

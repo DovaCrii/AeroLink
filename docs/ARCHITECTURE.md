@@ -24,13 +24,22 @@ AeroControl.
 
 ## Datos propios
 
-- `Workspace` y `UserIdentity`.
-- `Device` y `DeviceTopology`.
-- `RawMessage` y `TelemetrySample`.
-- `FlightSession`.
-- `FlightEvidence`.
-- `IngestionException`.
-- `AuditEvent`.
+Existen como tabla y tienen quién las escriba:
+
+- `Workspace`, `Device` (AL-107), `RawMessage` (el worker), `FlightEvidence`
+  (AL-105) y `AuditEvent`.
+
+Existen como tabla y **todavía sin escritor**, con el trabajo que lo traerá:
+
+- `UserIdentity` — AL-103, bloqueada por la decisión de identidad (AL-R6).
+- `TelemetrySample` y `FlightSession` — AL-301/AL-302, después de que AL-204
+  capture fixtures reales de DJI.
+- `IngestionException` — la bandeja de AL-306. `/metrics` ya publica cuántas hay
+  abiertas; hoy son cero porque nada las crea, y el primer escritor honesto
+  aparece con la normalización de AL-302.
+
+`DeviceTopology` **no existe**: ni modelo, ni tabla, ni referencias. Llega con
+AL-203, que es donde se registra la topología control–aeronave–payload.
 
 Los identificadores son UUID. Cada sesión conserva un identificador externo
 inmutable para permitir una integración futura sin cambiar el histórico.
