@@ -12,6 +12,25 @@ the untouched original message (`RawMessage`, hash included). Parsing DJI's
 payload shape into `TelemetrySample`/`FlightSession` is AL-302, after AL-204
 has captured real fixtures -- guessing the wire format here would be worse
 than not parsing it at all.
+
+Durability is the part that is easy to get wrong and hard to notice. The
+ADR-0004 promise is that the relay going down, or this worker going down,
+delays ingestion instead of losing it. Two settings make that true, and
+without either one the QoS 1 subscription is decoration:
+
+- **Persistent session** (`clean_session=False`, with a fixed client id): the
+  relay keeps this subscriber's queue while the worker is restarting or
+  deploying. With a clean session the broker discards that queue on
+  disconnect -- exactly when the guarantee matters.
+- **Manual acknowledgement** (`manual_ack=True`): paho otherwise acknowledges
+  a QoS 1 message as soon as the callback returns, *including when the
+  callback raised*. A database outage would then acknowledge messages it
+  never stored. Here nothing is acknowledged before it is committed.
+
+The remaining trade-off is deliberate: while the database is unreachable the
+messages stay unacknowledged, so ingestion **stalls** and the relay redelivers
+them on the next session resume. It never silently drops them. Forcing that
+recovery instead of waiting for the next reconnect belongs to AL-205.
 """
 
 import base64
@@ -126,10 +145,16 @@ def build_client(
     """An MQTT client configured to *dial out* to the relay -- TLS via the
     system CA store (the relay carries a real public certificate; this is
     not the self-signed/local-file setup AL-104 needed when the broker was
-    still assumed to run on p340)."""
+    still assumed to run on p340).
+
+    See the module docstring for why the session is persistent and the
+    acknowledgement manual: together they are what makes QoS 1 mean
+    something across a restart."""
     client = mqtt.Client(
         client_id=settings.mqtt_worker_client_id,
         callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        clean_session=False,
+        manual_ack=True,
     )
     client.username_pw_set(settings.mqtt_worker_username, settings.mqtt_worker_password)
     client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS_CLIENT)
@@ -137,23 +162,50 @@ def build_client(
 
     def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties=None):
         if reason_code == 0:
-            logger.info("relay_connected", extra={"topic": settings.mqtt_worker_topic})
+            # `session_present` tells whether the relay still had this
+            # subscriber's queue. Logged because it is the only externally
+            # visible sign that the durability contract is holding: a restart
+            # that reports False lost whatever was queued for it.
+            logger.info(
+                "relay_connected",
+                extra={
+                    "topic": settings.mqtt_worker_topic,
+                    "session_present": getattr(flags, "session_present", None),
+                },
+            )
+            # Re-subscribing on a resumed session is redundant but harmless,
+            # and it is what makes a first connection (or a relay that lost
+            # our session) work without special-casing.
             client.subscribe(settings.mqtt_worker_topic, qos=1)
         else:
-            logger.error("relay_connect_failed", extra={"topic": str(reason_code)})
+            logger.error(
+                "relay_connect_failed", extra={"reason_code": str(reason_code)}
+            )
 
     def on_disconnect(
         client: mqtt.Client, userdata, flags, reason_code, properties=None
     ):
-        logger.warning("relay_disconnected", extra={"topic": str(reason_code)})
+        logger.warning("relay_disconnected", extra={"reason_code": str(reason_code)})
 
     def on_message(client: mqtt.Client, userdata, message: mqtt.MQTTMessage):
-        persist_raw_message(
-            message.topic,
-            message.payload,
-            qos=message.qos,
-            session_factory=session_factory,
-        )
+        try:
+            persist_raw_message(
+                message.topic,
+                message.payload,
+                qos=message.qos,
+                session_factory=session_factory,
+            )
+        except Exception:
+            # No acknowledgement, on purpose: an unacknowledged QoS 1 message
+            # is still the relay's to redeliver. Letting the exception escape
+            # would achieve nothing -- paho logs it and moves on -- so it is
+            # caught here to keep the network loop alive while the message
+            # stays owed to us.
+            logger.exception(
+                "raw_message_persist_failed", extra={"topic": message.topic}
+            )
+            return
+        client.ack(message.mid, message.qos)
 
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect

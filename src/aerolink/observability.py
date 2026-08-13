@@ -22,6 +22,8 @@ class JsonFormatter(logging.Formatter):
             "topic",
             "raw_message_id",
             "workspace_id",
+            "reason_code",
+            "session_present",
         ):
             value = getattr(record, field, None)
             if value is not None:
