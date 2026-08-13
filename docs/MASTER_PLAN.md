@@ -124,7 +124,7 @@ y el bloque `X` de su `MASTER_PLAN.md`.
 | **AL-R3** | **Definir el contrato de coexistencia ahora, aunque se implemente después.** Fijar el **número de serie del equipo** como llave compartida. | AL-203 ("registro de topología y seriales") es justo donde nace el problema. El ADR-0001 dice que cada sesión conserva "un identificador externo inmutable", pero no dice externo *a qué*. El serial es la única llave que existe en los tres mundos: la reporta DJI, la registra la DGAC, y está embebida en el repositorio documental de la empresa. |
 | **AL-R4** | **No duplicar el padrón.** Consumir aeronaves y operadores desde AeroControl (solo lectura) en vez de que `Device` sea fuente de verdad. | AeroControl ya tiene las 16 aeronaves reales con su centro de costo, seguro y documentación DGAC, y ya expone DRF con token y throttling. Sin esto nacen dos inventarios divergentes de los mismos drones y después hay que reconciliarlos con datos acumulados. **Degradación obligatoria:** si el padrón no responde, la sesión se guarda con el serial crudo y se concilia después — nunca se descarta telemetría por no poder resolver la aeronave. |
 | **AL-R5** | **Adelantar la restauración desde respaldo (AL-405) de M4 a M1.** | AeroLink promete evidencia con hash y retención de 5 años, y va a la **misma VM cuyo respaldo nunca se ha restaurado** (es la prioridad #1 abierta de AeroControl). Un respaldo no restaurado no es un respaldo. Probarlo cuando hay poco que perder es barato; probarlo en M4 es probarlo con evidencia real adentro. |
-| **AL-R6** | **Decidir la identidad antes de M1** (AL-103). | Entra ID en AeroLink y cuentas Django en AeroControl son dos logins para las mismas ~8 personas. Las opciones son: AeroControl migra a Entra ID, AeroLink acepta un modo local, o se asume la fricción a conciencia. Cualquiera sirve; decidirlo después de construir AL-103 no. |
+| **AL-R6** ✅ | **Resuelta el 2026-08-13: Entra ID en AeroLink, AeroControl sin cambios** ([ADR-0005](adr/0005-identidad-de-personas-con-entra-id.md)). Se asume la fricción de dos logins a conciencia; no se construye modo local de respaldo. | Entra ID en AeroLink y cuentas Django en AeroControl son dos logins para las mismas ~8 personas. Las opciones son: AeroControl migra a Entra ID, AeroLink acepta un modo local, o se asume la fricción a conciencia. Cualquiera sirve; decidirlo después de construir AL-103 no. |
 | **AL-R7** | **Aprovechar que PostgreSQL llega a `p340` con AL-102** para reabrir la migración de AeroControl desde SQLite. | En AeroControl esa migración está diferida por costo de infraestructura. Con Postgres ya instalado y respaldado en la misma VM, el costo cambia: un solo motor, un solo procedimiento de respaldo, una sola restauración que ensayar. No es trabajo de AeroLink, pero es una consecuencia de su llegada que conviene aprovechar. |
 
 ### Nota sobre los seriales (afecta AL-001 y AL-203)
@@ -196,14 +196,22 @@ Todo el trabajo escrito está **en `main`**; ya no hay ramas parqueadas.
 | Esquema de datos, FastAPI con `/health`/`/ready`/`/metrics`, diagnóstico H5 y preflight de licencia, docker-compose de desarrollo | PR #29, #31, #32, #33 | Fusionado; `AL-101` y `AL-102` cerrados |
 | `AL-107` — inventario de dispositivos para AeroControl (token de servicio, auditoría, 51 pruebas) | PR #35 | Fusionado; falta desplegarlo en p340 |
 | `AL-104` (a) — cliente MQTT saliente hacia el relay, persiste `RawMessage` con SHA-256 | PR #37 | Fusionado; no puede correr hasta que exista el relay |
+| `AL-104` (a) endurecido — sesión persistente y acuse manual: QoS 1 significa algo al reiniciar | PR #38 | Fusionado |
+| `AL-106` — métricas de ingesta que sobreviven al reinicio del worker, y sondas que fallan rápido | PR #39 | Fusionado; faltan las reglas de alerta y su destinatario |
+| `AL-105` — evidencia con hash verificable, direccionada por contenido, retención como consulta | PR #40 | Fusionado; sin ruta HTTP hasta `AL-103` |
 
-Lo que queda no es código sin escribir, son **tres decisiones y una sesión de
-prueba**:
+Lo que queda **no es código sin escribir**:
 
-- `AL-R1` — proveedor del relay. **Puede quedar sin comprarse**: la Prueba 3 de la
-  [ruta de prueba](operations/RUTA_DE_PRUEBA.md) dice si Pilot 2 acepta WSS.
-- `AL-R6` — identidad (Entra ID vs cuentas locales); bloquea `AL-103`.
-- `AL-002` — combinación DJI del piloto. Es el insumo escaso: un control y ~90
-  minutos habilitan las Pruebas 1, 2 y 3 de una vez.
-- Desplegar `AL-107` en p340 y publicar el H5 por HTTPS. Nada de esto espera al
+- **Una dependencia externa que conviene iniciar ya**: registrar la aplicación en
+  el tenant de Entra ID ([ADR-0005](adr/0005-identidad-de-personas-con-entra-id.md)).
+  Sin eso `AL-103` no termina, y sin `AL-103` la evidencia de `AL-105` no tiene
+  ruta de descarga. Es la misma lección de `AL-R2`.
+- **Una decisión que puede quedar sin tomarse**: `AL-R1`, el proveedor del relay.
+  La Prueba 3 de la [ruta de prueba](operations/RUTA_DE_PRUEBA.md) dice si Pilot 2
+  acepta WSS por Funnel; si lo acepta, no hay nada que comprar.
+- **Una sesión de operación**: `AL-002`, un control y ~90 minutos habilitan las
+  Pruebas 1, 2 y 3 de una vez.
+- **Un despliegue**: `AL-107` en p340 y el H5 por HTTPS. Nada de esto espera al
   relay.
+- **Código que sí se puede escribir sin destrabar nada**: `AL-203`, el modelo de
+  topología y su migración — que el barrido del 2026-08-13 mostró que no existe.
