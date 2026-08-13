@@ -45,7 +45,9 @@ vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
 
 - AL-001 Inventario de aeronaves, controles, firmware, Pilot 2 y payloads.
 - AL-002 Selección de combinación DJI para el piloto.
-- AL-003 Validación de ingreso público p340, DNS, TLS, HTTPS y MQTT.
+- AL-003 Validación de ingreso público p340, DNS, TLS, HTTPS y MQTT. **Medido el
+  2026-08-10: no hay ingreso TCP a la IP pública, ni 443 ni 8883** (ver *Estado
+  del gate de red* al final de este plan).
 - AL-004 Registro de aplicación y licencia DJI Cloud API.
 - AL-005 ADR de arquitectura, amenazas, retención y respaldos.
 
@@ -54,7 +56,11 @@ vigentes de DJI Cloud API. No se asume compatibilidad por el modelo de aeronave.
 - AL-101 Scaffold FastAPI, worker, Docker Compose y CI.
 - AL-102 PostgreSQL, migraciones y modelo de datos.
 - AL-103 Microsoft Entra ID, roles y auditoría.
-- AL-104 EMQX con TLS, autenticación, rotación y ACL.
+- AL-104 Broker MQTTS con TLS, autenticación, rotación y ACL. Dividido por el
+  ADR-0004: (a) el cliente saliente que consume el relay —escrito, en la rama
+  `codex/relay-worker`— y (b) la configuración del relay externo, que no se puede
+  terminar sin proveedor elegido. Ya no es "EMQX en p340": ese servicio queda para
+  desarrollo local.
 - AL-105 Almacenamiento de evidencias, hashes, retención y backups.
 - AL-106 Health checks, métricas, logs y alertas.
 - AL-107 API de inventario de dispositivos para AeroControl (ADR-0002 fase 2, ADR-0003). Expone **sólo lo que AeroLink masterea** —baterías, payloads y topología de control—, nunca aeronaves: el padrón es de AeroControl (AL-R4), y pedirlo aquí responde 403. No depende del gate de red de AL-R1, que bloquea MQTTS y no HTTPS, así que es entregable antes que el resto de M1.
@@ -143,3 +149,54 @@ es continua y asíncrona, DJI exige ingreso público con credenciales propias, y
 una falla de ingesta no debe voltear el sistema que la operación usa a diario.
 Tampoco propone base de datos compartida ni acceso cruzado a filesystem — el
 ADR-0001 lo prohíbe y está bien así.
+
+---
+
+## Estado del gate de red (AL-003 / AL-R1) — 2026-08-10
+
+`AL-R1` advirtió que el gate de red era el camino crítico y que era *probable*
+que fallara. Se midió y falló. Desde fuera de la red Tailscale, contra la IP
+pública de p340 (`200.54.29.98`):
+
+| Puerto | ICMP | TCP |
+|---|---|---|
+| 443 (HTTPS) | responde | cerrado/filtrado |
+| 8883 (MQTTS) | responde | cerrado/filtrado |
+
+Ningún puerto TCP entrante está abierto, ni siquiera el 443 que AeroControl usa a
+diario: ese tráfico no entra por la IP pública, entra por el túnel saliente de
+Tailscale Funnel, que sirve HTTPS y nada más. **Hoy no existe camino para que un
+control DJI alcance un broker en p340.**
+
+**Dirección adoptada:** el broker de producción vive en un **relay externo** con
+IP pública propia; p340 lo consume con una conexión saliente. Opciones evaluadas,
+consecuencias y lo que queda pendiente están en el
+[ADR-0004](adr/0004-broker-mqtt-en-relay-externo.md). `AL-R1` **no se cierra**
+hasta elegir el proveedor del relay, su DNS con certificado válido y su ACL.
+
+Efecto en el orden del plan:
+
+- **M2 completo sigue bloqueado** por esto, no solo `AL-104`.
+- Lo que entra por HTTPS no está afectado: `AL-102`, `AL-105`, `AL-106` y
+  `AL-107` son entregables antes de resolver el relay.
+- Si `AL-002`/`AL-204` confirman que el firmware de la flota admite MQTT sobre
+  WSS, el relay se vuelve innecesario. Vale la pena verificarlo antes de pagar
+  por infraestructura.
+
+## Estado de ejecución — 2026-08-13
+
+Lo fusionado a `main`: esquema de datos completo, FastAPI con
+`/health`/`/ready`/`/metrics`, verificación de conectividad y de licencia DJI sin
+credenciales en runtime, docker-compose de desarrollo (PR #29, #31, #32, #33).
+`AL-101` y `AL-102` cerrados.
+
+Trabajo escrito y **fuera de `main`**, cada uno esperando su PR:
+
+| Rama | Alcance | Estado |
+|---|---|---|
+| `codex/api-inventario-dispositivos` | `AL-107` — inventario de dispositivos para AeroControl (token de servicio, auditoría, 51 pruebas) | Empujada, sin PR |
+| `codex/relay-worker` | `AL-104` (a) — cliente MQTT saliente hacia el relay, persiste `RawMessage` con SHA-256 | Local, sin empujar |
+
+Decisiones abiertas que bloquean trabajo, no descubrimiento: `AL-R1` (proveedor
+del relay), `AL-R6` (identidad: Entra ID vs cuentas locales, bloquea `AL-103`) y
+`AL-002` (combinación DJI del piloto, con `AL-004` como dependencia externa).
