@@ -22,6 +22,23 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def _enum_values(enum_class) -> list[str]:
+    """Persist the enum's **values**, not its member names.
+
+    SQLAlchemy's default for `Enum(PyEnum)` is to store `member.name`, so
+    `DeviceKind.BATTERY` would be sent as `"BATTERY"`. The initial migration
+    created the Postgres types with the lower-case *values*
+    (`sa.Enum("controller", "aircraft", "payload", "battery", name="device_kind")`),
+    so the default makes every query fail with `invalid input value for enum`.
+
+    That mismatch reached production on 2026-08-13 —`?kind=battery` answered 500 on
+    p340— because sqlite degrades `Enum` to VARCHAR and both sides agreed on the
+    name, so the whole suite passed. The values are also what the HTTP contract and
+    the audit rows use (`kind.value`), which makes them the right side to keep.
+    """
+    return [member.value for member in enum_class]
+
+
 class DeviceKind(str, enum.Enum):
     CONTROLLER = "controller"
     AIRCRAFT = "aircraft"
@@ -65,7 +82,9 @@ class UserIdentity(Base):
     subject: Mapped[str] = mapped_column(String(200), index=True)
     display_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"))
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role", values_callable=_enum_values)
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -83,7 +102,9 @@ class Device(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("workspaces.id"), index=True
     )
-    kind: Mapped[DeviceKind] = mapped_column(Enum(DeviceKind, name="device_kind"))
+    kind: Mapped[DeviceKind] = mapped_column(
+        Enum(DeviceKind, name="device_kind", values_callable=_enum_values)
+    )
     serial_number: Mapped[str] = mapped_column(String(120), index=True)
     model: Mapped[str | None] = mapped_column(String(150), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="unknown", index=True)
