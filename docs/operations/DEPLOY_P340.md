@@ -64,8 +64,11 @@ servicio `postgres` con `POSTGRES_PASSWORD`.
 
 ```bash
 cd /opt/aerolink
-docker compose up --build --detach api worker migrate postgres minio
+docker compose up --build --detach api worker minio
 ```
+
+`postgres` y `migrate` entran solos como dependencias de `api`, así que no hace
+falta nombrarlos.
 
 `migrate` corre `alembic upgrade head` y los demás esperan a que termine bien
 (`service_completed_successfully`). **`emqx` no se levanta**: el compose lo marca
@@ -110,37 +113,85 @@ with SessionLocal() as s:
 Las baterías se cargan después: son el dato que AeroLink masterea, y hasta que
 existan el sync de AeroControl devolverá cero **legítimamente**.
 
-## Parte D — Publicar por Funnel, sin pelear con AeroControl
+## Parte D — Publicar por Funnel **sólo la superficie de diagnóstico**
 
 Funnel sólo admite 443, 8443 y 10000, y el 443 del nodo ya sirve AeroControl en
 `/`. En vez de darle a AeroLink un puerto no estándar —que la H5 de DJI podría
-rechazar— se le da una **ruta** en el mismo 443:
+rechazar— se le da una **ruta** en el mismo 443.
+
+**Lo que se publica ahí es `pilot2-diagnostic` (8090), no la API (8081).** La
+primera versión de este runbook decía `8081` y eso es un error: publicar la API
+completa pone `/metrics`, `/docs` y `/openapi.json` de cara a internet. El
+inventario de `AL-107` está protegido por token, pero las métricas no lo están —
+y no hacen falta afuera: **AeroControl lee la API por loopback**, no por Funnel.
+`pilot2_diagnostic_server` existe precisamente para esto: una sola ruta, sin
+OpenAPI, sin MQTT y sin telemetría.
 
 ```bash
-sudo tailscale funnel --bg --set-path /aerolink 8081
+cd /opt/aerolink
+docker compose up --detach pilot2-diagnostic
+sudo tailscale funnel --bg --set-path /aerolink 8090
 tailscale funnel status
 ```
 
-`--set-path` recorta el prefijo antes de reenviar, así que AeroLink recibe `/health`
-mientras el mundo ve `/aerolink/health`. Por eso `APP_ROOT_PATH=/aerolink`: sin él
-la app responde igual pero genera URLs sin el prefijo.
+Volver a ejecutar `--set-path /aerolink` **sobrescribe** esa ruta; no hace falta
+`off` y así no se corre el riesgo de tocar la de AeroControl. `status` debe seguir
+mostrando `/` → `127.0.0.1:8000`.
+
+> **No usar `tailscale funnel --https=443 off`**, que es lo que sugiere la salida
+> del comando: eso apaga el Funnel completo del nodo y **se lleva AeroControl con
+> él**. Para quitar sólo esta ruta: `sudo tailscale funnel --set-path /aerolink off`.
+
+`--set-path` recorta el prefijo antes de reenviar, así que la app recibe `/`
+mientras el mundo ve `/aerolink`. `APP_ROOT_PATH=/aerolink` queda configurado para
+cuando la API sí necesite servirse bajo el prefijo (su propia ruta de descarga,
+con `AL-103`).
 
 **Verificar desde fuera del tailnet** (un teléfono con datos móviles; un equipo del
 tailnet llega igual con o sin Funnel, así que no sirve para comprobar la exposición):
 
 ```
-https://p340.tailccd107.ts.net/aerolink/health
-https://p340.tailccd107.ts.net/aerolink/pilot2/diagnostic
-https://p340.tailccd107.ts.net/health/          ← AeroControl, debe seguir intacto
+https://p340.tailccd107.ts.net/aerolink       ← la H5 de diagnóstico
+https://p340.tailccd107.ts.net/health/        ← AeroControl, debe seguir intacto
 ```
 
-Con eso el preflight de licencia deja de tener bloqueadores:
+Y comprobar que la API **no** quedó expuesta:
 
 ```bash
-docker compose exec api python aerolink_preflight.py --scope license
+for p in metrics docs api/v1/devices/?kind=battery; do
+  curl -sS -o /dev/null -w "$p=%{http_code}\n" "https://p340.tailccd107.ts.net/aerolink/$p"
+done
 ```
 
-## Parte E — Conectar AeroControl (Prueba 0)
+Con `pilot2-diagnostic` detrás de la ruta, las tres deben dar `404`.
+
+Con eso el preflight de licencia deja de tener bloqueadores. **Se invoca como
+módulo**: `aerolink_preflight.py` es una conveniencia para un checkout de código y
+el Dockerfile no lo copia a la imagen —sólo `src/` y `alembic/`—, así que dentro
+del contenedor la forma correcta es:
+
+```bash
+docker compose exec api python -m aerolink.preflight --scope license
+```
+
+## Parte E — Verificar el contrato sin depender de AeroControl
+
+Comprobar el productor antes de culpar al consumidor. El token se lee del `.env` y
+no se imprime:
+
+```bash
+cd /opt/aerolink
+T=$(grep '^SERVICE_TOKEN=' .env | cut -d= -f2-)
+curl -sS -H "Authorization: Token $T" "http://127.0.0.1:8081/api/v1/devices/?kind=battery"; echo
+curl -sS -o /dev/null -w "aircraft=%{http_code}\n" -H "Authorization: Token $T" "http://127.0.0.1:8081/api/v1/devices/?kind=aircraft"
+curl -sS -o /dev/null -w "sin_token=%{http_code}\n" "http://127.0.0.1:8081/api/v1/devices/?kind=battery"
+```
+
+Esperado: `{"results":[]}` con el inventario vacío —cero baterías es un resultado
+legítimo, no una falla—, `aircraft=403` (el padrón es de AeroControl, AL-R4) y
+`sin_token=401`.
+
+## Parte F — Conectar AeroControl (Prueba 0)
 
 En **AeroControl**, antes del primer sync real:
 
@@ -150,9 +201,26 @@ set -a; source <(sudo cat /etc/aerocontrol.env); set +a
 uv run python manage.py audit_serial_case      # cambiar save() no reescribe filas ya guardadas
 ```
 
-Configurar la URL y el token —el mismo valor generado en la Parte A— y sincronizar:
+Después hay que **configurar la URL y el token en AeroControl**. Este paso es fácil
+de saltarse, y el síntoma es `AeroLink unavailable: AEROLINK_API_URL is not
+configured`. El bloque lee el token del `.env` de AeroLink y lo escribe en
+`/etc/aerocontrol.env` sin mostrarlo, y es idempotente:
 
 ```bash
+sudo bash -c 'T=$(grep "^SERVICE_TOKEN=" /opt/aerolink/.env | cut -d= -f2-); sed -i "/^AEROLINK_API_URL=/d;/^AEROLINK_API_TOKEN=/d" /etc/aerocontrol.env; printf "AEROLINK_API_URL=http://127.0.0.1:8081/api/v1\nAEROLINK_API_TOKEN=%s\n" "$T" >> /etc/aerocontrol.env; chmod 600 /etc/aerocontrol.env'
+```
+
+La URL es **loopback y lleva el prefijo `/api/v1`**: el cliente de AeroControl sólo
+concatena `/devices/?kind=battery`, y los dos servicios comparten VM, así que esta
+llamada nunca sale a internet.
+
+`systemctl restart` es necesario porque `systemd` pasa ese archivo por
+`EnvironmentFile=`; la ejecución manual del comando necesita además el `source`:
+
+```bash
+sudo systemctl restart aerocontrol && systemctl is-active aerocontrol
+cd /opt/aerocontrol
+set -a; source <(sudo cat /etc/aerocontrol.env); set +a
 uv run python manage.py sync_batteries
 ```
 
@@ -170,7 +238,7 @@ with SessionLocal() as s:
 "
 ```
 
-## Parte F — Qué mirar cuando algo falle
+## Parte G — Qué mirar cuando algo falle
 
 ```bash
 docker compose logs api --tail 50
@@ -181,7 +249,7 @@ curl -sS http://127.0.0.1:8093/metrics | grep aerolink_worker   # sólo si worke
 `aerolink_ingestion_metrics_available 0` significa que el scrape no pudo leer la
 base — mira Postgres, no la métrica.
 
-## Parte G — Revertir
+## Parte H — Revertir
 
 ```bash
 cd /opt/aerolink
