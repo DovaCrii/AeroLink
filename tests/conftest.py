@@ -10,6 +10,19 @@ large step for a small gain. The divergences that matter are known — `sa.Enum`
 becomes VARCHAR+CHECK, `Uuid` becomes CHAR(32), `JSON` becomes TEXT — and none
 of them bite **as long as `metadata_json` is never filtered in SQL**. Read it in
 Python; that rule is what keeps these tests representative.
+
+**Uno de ellos sí mordió (2026-08-13).** `sa.Enum` degradado a VARCHAR aceptó los
+nombres de los miembros (`"BATTERY"`), que es lo que SQLAlchemy persiste por
+omisión, mientras el tipo real de Postgres tenía los valores en minúscula: el
+endpoint de inventario respondió 500 en p340 con la suite entera en verde. La
+corrección vive en `models._enum_values` y la comprobación en
+`test_enum_labels.py`, que mira las etiquetas declaradas en vez de una consulta —
+porque una consulta contra sqlite nunca habría visto la diferencia.
+
+La lección no es "no usar sqlite", es que la lista de divergencias de arriba hay
+que tratarla como una lista de cosas a fijar con una prueba, no como una lista de
+cosas inofensivas. Correr la suite contra Postgres las cubriría todas de una vez y
+sigue siendo la mejora pendiente.
 """
 
 from __future__ import annotations
