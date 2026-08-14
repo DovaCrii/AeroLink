@@ -61,12 +61,19 @@ Las tres se hacen seguidas, con un control y un operador, sin despegar y sin gas
 infraestructura:
 
 1. **Prueba 1** usa el servicio `pilot2-connectivity` (escucha en `127.0.0.1:8092` y
-   **no lee `.env`**): se publica temporalmente por Funnel y sólo demuestra que Pilot 2
-   alcanza una página H5 y detecta JSBridge. No toca licencia ni credenciales.
-2. **Prueba 2** apunta `APP_BASE_URL` al FQDN público y abre `/pilot2/diagnostic` desde
-   Pilot 2. Resultado esperado: **"JSBridge disponible"** y **"Licencia DJI
+   **no lee `.env`**): se publica por Funnel y sólo demuestra que Pilot 2 alcanza una
+   página H5 y detecta JSBridge. No toca licencia ni credenciales. Es la superficie
+   que debe quedar publicada **por defecto** entre pruebas.
+2. **Prueba 2** cambia la ruta pública al servicio `pilot2-diagnostic` (8090) y abre esa
+   página desde Pilot 2. Resultado esperado: **"JSBridge disponible"** y **"Licencia DJI
    verificada"**. En un navegador normal, JSBridge debe aparecer como no disponible —
    ese contraste es parte del resultado.
+
+   **Se publica sólo mientras dure la prueba y se retira al terminar.** La verificación
+   de licencia de DJI ocurre en el cliente, así que esa página lleva `appId`, `appKey` y
+   `license` en su propio HTML: publicada, las expone a cualquiera que haga `curl`. Es
+   el diseño de DJI, no un defecto nuestro, y por eso existe la superficie sin
+   credenciales de la Prueba 1 para el resto del tiempo.
 3. **Prueba 3** es la que puede ahorrar el relay: con la sesión ya montada, intentar que
    el Cloud Module apunte a un host **`wss://`** servido por Funnel en vez de a
    `mqtts://…:8883`. Si Pilot 2 lo acepta, el relay externo del

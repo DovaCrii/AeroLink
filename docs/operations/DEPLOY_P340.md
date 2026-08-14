@@ -119,20 +119,55 @@ Funnel sólo admite 443, 8443 y 10000, y el 443 del nodo ya sirve AeroControl en
 `/`. En vez de darle a AeroLink un puerto no estándar —que la H5 de DJI podría
 rechazar— se le da una **ruta** en el mismo 443.
 
-**Lo que se publica ahí es `pilot2-diagnostic` (8090), no la API (8081).** La
-primera versión de este runbook decía `8081` y eso es un error: publicar la API
-completa pone `/metrics`, `/docs` y `/openapi.json` de cara a internet. El
-inventario de `AL-107` está protegido por token, pero las métricas no lo están —
-y no hacen falta afuera: **AeroControl lee la API por loopback**, no por Funnel.
-`pilot2_diagnostic_server` existe precisamente para esto: una sola ruta, sin
-OpenAPI, sin MQTT y sin telemetría.
+**Lo que se publica ahí no es la API (8081).** La primera versión de este runbook
+decía `8081` y eso es un error: publicar la API completa pone `/metrics`, `/docs` y
+`/openapi.json` de cara a internet —verificado el 2026-08-13: los tres respondían
+`200`—. El inventario de `AL-107` está protegido por token, pero las métricas no lo
+están, y no hacen falta afuera: **AeroControl lee la API por loopback**, no por
+Funnel.
+
+Hay **dos** superficies H5 y la diferencia importa:
+
+| Servicio | Puerto | Lee `.env` | Cuándo publicarlo |
+|---|---|---|---|
+| `pilot2-connectivity` | 8092 | **No** | Por defecto, y para la Prueba 1 |
+| `pilot2-diagnostic` | 8090 | Sí | **Sólo durante** la Prueba 2, con el control en mano |
+
+La razón es que la verificación de licencia de DJI ocurre **en el cliente**: la
+página tiene que llevar `appId`, `appKey` y `license` en su propio HTML para
+pasárselos a `djiBridge.platformVerifyLicense`. Es el diseño de DJI, no un defecto
+nuestro, pero significa que **8090 publica esas tres credenciales a cualquiera que
+haga `curl`**. `pilot2-connectivity` sirve la misma página sin credenciales —su
+servicio ni siquiera monta `env_file`— y alcanza para demostrar que Pilot 2 carga la
+página y expone JSBridge.
+
+Por defecto, entonces:
+
+```bash
+cd /opt/aerolink
+docker compose up --detach pilot2-connectivity
+sudo tailscale funnel --bg --set-path /aerolink 8092
+tailscale funnel status
+```
+
+Y **sólo mientras dure la Prueba 2**, con el control conectado:
 
 ```bash
 cd /opt/aerolink
 docker compose up --detach pilot2-diagnostic
-sudo tailscale funnel --bg --set-path /aerolink 8090
-tailscale funnel status
+sudo tailscale funnel --bg --set-path /aerolink 8090     # publica las credenciales
+# ... hacer la prueba ...
+sudo tailscale funnel --bg --set-path /aerolink 8092     # volver a la superficie sin credenciales
 ```
+
+Comprobar qué está publicado en cada momento, sin imprimir el valor:
+
+```bash
+curl -sS https://p340.tailccd107.ts.net/aerolink | grep -c '"appKey"'
+```
+
+`0` = superficie sin credenciales. `1` = credenciales publicadas, y eso sólo debe
+ser cierto mientras haya una prueba en curso.
 
 Volver a ejecutar `--set-path /aerolink` **sobrescribe** esa ruta; no hace falta
 `off` y así no se corre el riesgo de tocar la de AeroControl. `status` debe seguir
