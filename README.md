@@ -39,6 +39,7 @@ endpoint responde `503` y no expone nada.
 - [ADR-0004](docs/adr/0004-broker-mqtt-en-relay-externo.md) — por qué el broker no vive en p340.
 - [ADR-0005](docs/adr/0005-identidad-de-personas-con-entra-id.md) — cómo se autentican las personas.
 - [Ruta de prueba](docs/operations/RUTA_DE_PRUEBA.md) — qué se puede probar hoy con un control, y qué información entrega cada prueba.
+- [Despliegue en p340](docs/operations/DEPLOY_P340.md) — cómo convive con AeroControl en la misma VM y la misma entrada HTTPS.
 
 ## Estado actual
 

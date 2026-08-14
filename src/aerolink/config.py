@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     app_secret_key: str = "development-only-change-me"
     app_base_url: str = "http://127.0.0.1:8000"
+    # Prefijo público cuando algo delante nos sirve bajo una ruta y la recorta
+    # antes de reenviar. En p340 es `/aerolink`: Tailscale Funnel ya publica
+    # AeroControl en `/` del mismo nodo, así que AeroLink entra por
+    # `funnel --set-path /aerolink`, que reenvía a `/` local. Sin esto la app
+    # responde igual pero genera URLs sin el prefijo, y la H5 de Pilot 2 depende
+    # de que su propia URL sea la pública.
+    app_root_path: str = ""
     database_url: str = "postgresql+psycopg://aerolink:aerolink@127.0.0.1:5432/aerolink"
     dji_app_id: str | None = None
     dji_app_key: str | None = None

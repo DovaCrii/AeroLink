@@ -77,6 +77,22 @@ def test_metrics_exposes_http_request_signals(client) -> None:
     assert "aerolink_http_request_duration_seconds" in response.text
 
 
+def test_the_app_can_be_served_under_a_public_path_prefix(monkeypatch) -> None:
+    """En p340, Funnel publica AeroControl en `/` del mismo nodo, así que AeroLink
+    entra por `--set-path /aerolink`, que recorta el prefijo antes de reenviar.
+    Sin `root_path` la app responde igual y genera URLs sin el prefijo."""
+    from aerolink.config import get_settings
+
+    monkeypatch.setenv("APP_ROOT_PATH", "/aerolink")
+    get_settings.cache_clear()
+    try:
+        app = main.create_app()
+    finally:
+        get_settings.cache_clear()
+
+    assert app.root_path == "/aerolink"
+
+
 def test_pilot2_diagnostic_page_is_safe_to_open_without_a_controller() -> None:
     response = client.get("/pilot2/diagnostic")
 

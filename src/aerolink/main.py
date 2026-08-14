@@ -31,7 +31,11 @@ REQUEST_DURATION = Histogram(
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
-    app = FastAPI(title=settings.app_name, version=settings.app_version)
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        root_path=settings.app_root_path,
+    )
     logger = logging.getLogger("aerolink.http")
 
     @app.middleware("http")
