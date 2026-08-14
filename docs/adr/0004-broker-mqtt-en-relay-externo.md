@@ -90,3 +90,39 @@ sobre el router; entonces el relay se vuelve innecesario, no incorrecto.
 1. Elegir el proveedor y el nombre DNS del relay, con certificado público válido.
 2. Definir su ACL y el esquema de credenciales por control.
 3. Confirmar la retención en el relay (idealmente cero: tránsito puro).
+
+## Anexo (2026-08-13): apareció una cuarta opción, y matiza el contexto
+
+Preparando el despliegue se revisó la CLI de Tailscale y tiene dos banderas que
+esta decisión no evaluó: `tailscale funnel --tcp` y `--tls-terminated-tcp`.
+Funnel no sólo sirve HTTPS: **también reenvía TCP**, en los puertos 443, 8443 y
+10000.
+
+Eso obliga a precisar la afirmación de arriba. Lo que `AL-003` midió el
+2026-08-10 fue **TCP directo contra la IP pública del sitio** (`200.54.29.98`), y
+ahí sigue siendo cierto que no entra nada. Pero Funnel no publica por esa IP:
+publica por la infraestructura de ingreso de Tailscale —comprobado el 2026-08-13,
+`https://p340.tailccd107.ts.net/health/` responde 200 desde internet mientras el
+443 de la IP pública está cerrado—. Decir *"no existe ningún camino para que un
+control DJI alcance un broker alojado en p340"* es correcto para TCP directo y
+**demasiado fuerte** en general: queda por descartar el ingreso por Funnel.
+
+La opción es: `sudo tailscale funnel --bg --tls-terminated-tcp 8443` hacia un
+broker local, con Pilot 2 conectando a `p340.tailccd107.ts.net:8443`. Tailscale
+termina el TLS con su certificado válido y entrega TCP plano en loopback, así que
+el broker no necesita certificado propio.
+
+Lo que hay que verificar antes de tratarla como salida, y por qué no cambia la
+decisión todavía:
+
+- **Que DJI acepte un puerto distinto de 8883.** Es la misma incógnita que la
+  opción 3 y se responde en la misma sesión con un control.
+- **Que Funnel tolere una conexión persistente.** Está diseñado para tráfico
+  HTTP, no para una sesión MQTT de horas; hay que medirlo, no suponerlo.
+- **Que el 8443 del nodo quede libre.** El 443 ya lo ocupa AeroControl en `/` y
+  AeroLink entra por `--set-path /aerolink`; el 8443 no está en uso.
+
+Si funciona, **no hay relay que comprar** y `AL-R1` se cierra sin costo
+recurrente. Si no, el relay externo sigue siendo la salida y esta decisión no
+cambia. Queda como Prueba 3b en la
+[ruta de prueba](../operations/RUTA_DE_PRUEBA.md).

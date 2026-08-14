@@ -40,6 +40,7 @@ publique. Eso lo dice la Prueba 2, y es justamente la información que se busca.
 | 1 | H5 + JSBridge, sin licencia | Un control en mano, una URL HTTPS pública temporal | Si Pilot 2 carga una página nuestra y expone JSBridge | Cero |
 | 2 | H5 + **licencia verificada** | Prueba 1 + `APP_BASE_URL` público | **Si la licencia DJI sirve.** Es el gate real de M2 | Cero |
 | 3 | **Sonda WSS** | Misma sesión de la Prueba 2 | Si el relay del ADR-0004 es necesario o se puede evitar | Minutos |
+| 3b | **Sonda de Funnel TCP en 8443** | Misma sesión, más un broker local | Lo mismo por otra vía: Funnel también reenvía TCP | Minutos |
 | 4 | Control online en el broker | Relay elegido **o** WSS confirmado, credenciales por dispositivo, ACL | Primer `RawMessage` real con hash | Relay, si hace falta |
 | 5 | Vuelo en modo sombra (`AL-402`) | M3 | Si una sesión de vuelo se reconstruye bien | Tiempo de operación |
 
@@ -49,7 +50,8 @@ Ya se verificó local el 2026-08-12: AeroControl sincronizó 2 baterías contra 
 endpoint real de AeroLink y enlazó una a `RPA-2002` por número de serie. Lo que falta
 es repetirlo contra p340 desplegado. Dos precondiciones que no son de AeroLink:
 
-- desplegar `AL-107` en p340 — el código ya está en `main` (PR #35);
+- desplegar `AL-107` en p340 — el código ya está en `main` (PR #35) y el
+  procedimiento en el [runbook de despliegue](DEPLOY_P340.md);
 - correr `manage.py audit_serial_case` en p340 **antes** del primer sync real —
   cambiar `save()` no reescribe filas ya guardadas.
 
@@ -72,8 +74,19 @@ infraestructura:
    desbloquea sin contratar nada. Si no lo acepta, el relay se contrata con evidencia en
    vez de con una suposición.
 
-Ninguna de las tres habilita comandos, despegue ni misiones. Se detienen si falla el
-certificado, la licencia o cualquier ACL.
+4. **Prueba 3b** es la misma pregunta por otra vía, y apareció después de escribir el
+   ADR-0004: Funnel **también reenvía TCP** (`--tcp`, `--tls-terminated-tcp`) en 443,
+   8443 y 10000. Lo que AL-003 midió cerrado fue el TCP directo contra la IP pública
+   del sitio, y Funnel no publica por ahí. Con
+   `sudo tailscale funnel --bg --tls-terminated-tcp 8443` hacia un broker local,
+   Tailscale termina el TLS con su certificado válido y entrega TCP plano en
+   loopback: el broker no necesita certificado propio y Pilot 2 conectaría a
+   `p340.tailccd107.ts.net:8443`. Hay que medir dos cosas antes de creerle —que DJI
+   acepte un puerto distinto de 8883, y que Funnel tolere una sesión MQTT de horas,
+   para lo que no está diseñado—. Si aguanta, **no hay relay que comprar**.
+
+Ninguna de estas pruebas habilita comandos, despegue ni misiones. Se detienen si falla
+el certificado, la licencia o cualquier ACL.
 
 ## Lo que hay que conseguir, en este orden
 
