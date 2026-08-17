@@ -199,19 +199,50 @@ Todo el trabajo escrito está **en `main`**; ya no hay ramas parqueadas.
 | `AL-104` (a) endurecido — sesión persistente y acuse manual: QoS 1 significa algo al reiniciar | PR #38 | Fusionado |
 | `AL-106` — métricas de ingesta que sobreviven al reinicio del worker, y sondas que fallan rápido | PR #39 | Fusionado; faltan las reglas de alerta y su destinatario |
 | `AL-105` — evidencia con hash verificable, direccionada por contenido, retención como consulta | PR #40 | Fusionado; sin ruta HTTP hasta `AL-103` |
+| `AL-R6` resuelta — identidad con Entra ID | PR #41 | [ADR-0005](adr/0005-identidad-de-personas-con-entra-id.md) |
+| `AL-203` — `DeviceTopology`, su migración y su escritor, por serial y sin calce difuso | PR #42 | Fusionado; falta que `AL-302` lo llame con datos reales |
+| Runbook de despliegue y `root_path` para convivir con AeroControl en el mismo 443 | PR #43, #44, #45 | Fusionado; ejecutado en p340 |
+| `Enum` guardaba el nombre del miembro y Postgres esperaba el valor | PR #46 | Fusionado; corrige un 500 en producción |
 
-Lo que queda **no es código sin escribir**:
+## Desplegado en p340 — 2026-08-14
+
+AeroLink corre en la VM, junto a AeroControl y sin compartir nada más que la
+entrada HTTPS. Lo verificado en el despliegue:
+
+- Migraciones aplicadas sobre **Postgres** hasta `20260813_0002`; `/health` y
+  `/ready` responden.
+- `https://p340.tailccd107.ts.net/aerolink` sirve la H5 **sin credenciales**
+  (`pilot2-connectivity`) y `/` sigue sirviendo AeroControl intacto.
+- El **preflight de licencia quedó sin bloqueadores**: las cuatro comprobaciones en
+  `pass`, incluida `https_endpoint`. Lo único que falta de `AL-004` es que DJI acepte
+  la licencia, y eso sólo lo dice el control.
+- El `worker` está detenido a propósito: sin relay no tiene a qué conectarse.
+
+Lo que el despliegue enseñó, y que ningún documento decía:
+
+- **Publicar la API completa por Funnel dejaba `/metrics`, `/docs` y
+  `/openapi.json` en internet** — medido, los tres respondían 200. Corregido: la ruta
+  pública sirve sólo la superficie H5 aislada, y la API se lee por loopback.
+- **La página de diagnóstico incrusta las credenciales DJI** en su HTML, porque la
+  verificación de licencia de DJI es client-side. Se publica sólo mientras dura la
+  Prueba 2; el resto del tiempo va la superficie sin credenciales.
+- **La suite pasaba en verde sobre un defecto que Postgres rechaza.** `sa.Enum`
+  degradado a VARCHAR en sqlite aceptaba el nombre del miembro. Correr las pruebas
+  contra Postgres en CI es la mejora que habría evitado el 500.
+
+## Lo que queda
 
 - **Una dependencia externa que conviene iniciar ya**: registrar la aplicación en
   el tenant de Entra ID ([ADR-0005](adr/0005-identidad-de-personas-con-entra-id.md)).
   Sin eso `AL-103` no termina, y sin `AL-103` la evidencia de `AL-105` no tiene
   ruta de descarga. Es la misma lección de `AL-R2`.
 - **Una decisión que puede quedar sin tomarse**: `AL-R1`, el proveedor del relay.
-  La Prueba 3 de la [ruta de prueba](operations/RUTA_DE_PRUEBA.md) dice si Pilot 2
-  acepta WSS por Funnel; si lo acepta, no hay nada que comprar.
+  Las Pruebas 3 y 3b de la [ruta de prueba](operations/RUTA_DE_PRUEBA.md) dicen si
+  Pilot 2 acepta WSS o si Funnel puede reenviar TCP en 8443; si alguna funciona, no
+  hay nada que comprar.
 - **Una sesión de operación**: `AL-002`, un control y ~90 minutos habilitan las
-  Pruebas 1, 2 y 3 de una vez.
-- **Un despliegue**: `AL-107` en p340 y el H5 por HTTPS. Nada de esto espera al
-  relay.
-- **Código que sí se puede escribir sin destrabar nada**: `AL-203`, el modelo de
-  topología y su migración — que el barrido del 2026-08-13 mostró que no existe.
+  Pruebas 1, 2, 3 y 3b de una vez.
+- **Respaldo de lo desplegado**: los volúmenes de Postgres y MinIO en p340 no tienen
+  respaldo propio verificado. Parte de `AL-105`, y antes de que entre evidencia real.
+- **Postgres en CI**: la única forma de que la suite vea las divergencias que hoy
+  sólo están documentadas en `tests/conftest.py`.

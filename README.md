@@ -1,7 +1,13 @@
+<div align="center">
+
+<img src="assets/aerolink-mark.svg" width="140" height="105" alt="Logo de AeroLink" />
+
 # AeroLink
 
 **Gateway independiente que conecta DJI Pilot 2 con un registro propio de
 vuelos, telemetría y evidencia técnica.**
+
+</div>
 
 ## Qué es
 
@@ -43,7 +49,14 @@ endpoint responde `503` y no expone nada.
 
 ## Estado actual
 
-**M0 en curso, con su gate resuelto en contra.** Todo lo escrito está en `main`:
+**Desplegado en p340 desde el 2026-08-14**, junto a AeroControl y sin compartir nada
+más que la entrada HTTPS: migraciones aplicadas sobre Postgres, `/health` y `/ready`
+respondiendo, la H5 pública sirviendo la superficie **sin credenciales**, y el
+preflight de licencia **sin bloqueadores**. El `worker` está detenido a propósito:
+sin broker no tiene a qué conectarse. Procedimiento y lo que el despliegue enseñó, en
+el [runbook](docs/operations/DEPLOY_P340.md).
+
+**M0 sigue en curso, con su gate resuelto en contra.** Todo lo escrito está en `main`:
 esquema de datos completo, FastAPI con `/health`/`/ready`/`/metrics`, verificación
 de conectividad y de licencia DJI sin credenciales en tiempo de ejecución,
 docker-compose de desarrollo con Postgres/EMQX/MinIO, el inventario de dispositivos
