@@ -5,15 +5,25 @@ red y volúmenes propios de docker, base de datos propia, y ninguno escribe en e
 dominio del otro. Este runbook levanta AeroLink en esa VM y lo publica por la
 misma entrada HTTPS que ya funciona.
 
-Datos verificados de la VM (2026-08-13): host `p340`, IP de tailnet
-`100.121.16.118`, usuario `levdigital01`, Ubuntu Server 26.04. AeroControl corre
-en `gunicorn` sobre `127.0.0.1:8000` y **Tailscale Funnel ya ocupa el 443 del nodo
-en `/`** (`https://p340.tailccd107.ts.net/health/` responde 200 desde internet).
+## Parte 0 — los valores de esta VM
 
-> **MagicDNS del equipo desde donde administras.** Si `ssh p340.tailccd107.ts.net`
-> da *connection timed out*, no es la VM: es que el nombre resolvió a la **IP
-> pública del sitio** (`200.54.29.98`), donde el 22 no está abierto —el mismo
-> hallazgo de AL-003—. Usa la IP de tailnet. La causa local es
+**Este repositorio es público**, así que el FQDN, las IP y el usuario no se escriben
+acá: van como variables que se definen una vez por sesión, y sus valores reales viven
+en la VM y en el canal interno. Todo lo que sigue las usa.
+
+```bash
+AL_HOST=<vm>.<tailnet>.ts.net     # el FQDN de Tailscale del nodo
+AL_TS_IP=<ip-de-tailnet>          # la 100.x de la VM, para ssh
+AL_USER=<usuario-de-la-vm>        # el dueño de /opt/aerolink
+```
+
+Lo demás del entorno, verificado el 2026-08-13: Ubuntu Server 26.04, AeroControl en
+`gunicorn` sobre `127.0.0.1:8000`, y **Tailscale Funnel ya ocupa el 443 del nodo en
+`/`** (`https://$AL_HOST/health/` responde 200 desde internet).
+
+> **MagicDNS del equipo desde donde administras.** Si `ssh $AL_HOST` da *connection
+> timed out*, no es la VM: el nombre resolvió a la **IP pública del sitio**, donde el
+> 22 no está abierto —el mismo hallazgo de AL-003—. Usa `$AL_TS_IP`. La causa local es
 > `Tailscale failed to set the DNS configuration of your device`.
 
 ## Lo que este despliegue **no** hace
@@ -38,7 +48,7 @@ Valores que hay que poner de verdad:
 | Variable | Valor en p340 |
 |---|---|
 | `APP_ENV` | `pilot` |
-| `APP_BASE_URL` | `https://p340.tailccd107.ts.net/aerolink` |
+| `APP_BASE_URL` | `https://$AL_HOST/aerolink` |
 | `APP_ROOT_PATH` | `/aerolink` |
 | `APP_SECRET_KEY` | generado (abajo) |
 | `POSTGRES_PASSWORD` | generado |
@@ -163,7 +173,7 @@ sudo tailscale funnel --bg --set-path /aerolink 8092     # volver a la superfici
 Comprobar qué está publicado en cada momento, sin imprimir el valor:
 
 ```bash
-curl -sS https://p340.tailccd107.ts.net/aerolink | grep -c '"appKey"'
+curl -sS https://$AL_HOST/aerolink | grep -c '"appKey"'
 ```
 
 `0` = superficie sin credenciales. `1` = credenciales publicadas, y eso sólo debe
@@ -186,15 +196,15 @@ con `AL-103`).
 tailnet llega igual con o sin Funnel, así que no sirve para comprobar la exposición):
 
 ```
-https://p340.tailccd107.ts.net/aerolink       ← la H5 de diagnóstico
-https://p340.tailccd107.ts.net/health/        ← AeroControl, debe seguir intacto
+https://$AL_HOST/aerolink       ← la H5 de diagnóstico
+https://$AL_HOST/health/        ← AeroControl, debe seguir intacto
 ```
 
 Y comprobar que la API **no** quedó expuesta:
 
 ```bash
 for p in metrics docs api/v1/devices/?kind=battery; do
-  curl -sS -o /dev/null -w "$p=%{http_code}\n" "https://p340.tailccd107.ts.net/aerolink/$p"
+  curl -sS -o /dev/null -w "$p=%{http_code}\n" "https://$AL_HOST/aerolink/$p"
 done
 ```
 

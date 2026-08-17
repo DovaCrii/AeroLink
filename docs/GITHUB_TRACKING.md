@@ -2,8 +2,28 @@
 
 ## Repositorio
 
-- Remoto previsto: `DovaCrii/AeroLink`.
-- Visibilidad: privada.
+- Remoto: `DovaCrii/AeroLink`.
+- Visibilidad: **pública**, a conciencia (decidido el 2026-08-17). El documento decía
+  "privada" y el repositorio nació público el 2026-08-06; se corrige el documento, no
+  el repositorio.
+
+### Qué no se escribe en un repositorio público
+
+La consecuencia de esa decisión es una regla, porque sin ella la documentación
+operacional publica el mapa de la infraestructura:
+
+- **Nada de FQDN resolubles, IP públicas o de tailnet, ni nombres de usuario de la
+  VM.** Van como variables (`$AL_HOST`, `$AL_TS_IP`, `$AL_USER`) o como marcadores
+  (`<vm>.<tailnet>.ts.net`); los valores reales viven en la VM y en el canal interno.
+  El apodo interno del host (`p340`) sí se usa: no resuelve a nada.
+- **Ningún secreto, ni de ejemplo con forma real.** `.env` está fuera de Git
+  (`.gitignore:10`) y los secretos se generan en la máquina.
+- **Ninguna captura ni payload DJI real**, como ya exige `AGENTS.md`.
+
+Saneado el 2026-08-17 en los ADR, el plan, la arquitectura y los runbooks. **El
+historial de git conserva los valores anteriores**: rotar el FQDN o la IP no es
+proporcional al riesgo —no son secretos, son ubicación— pero conviene saber que
+borrarlos del árbol no los borra del historial.
 - Rama protegida: `main`.
 - Ramas de trabajo: `codex/<area>-<descripcion>`.
 - Toda funcionalidad entra mediante pull request con CI verde.

@@ -88,7 +88,7 @@ infraestructura:
    `sudo tailscale funnel --bg --tls-terminated-tcp 8443` hacia un broker local,
    Tailscale termina el TLS con su certificado válido y entrega TCP plano en
    loopback: el broker no necesita certificado propio y Pilot 2 conectaría a
-   `p340.tailccd107.ts.net:8443`. Hay que medir dos cosas antes de creerle —que DJI
+   `<vm>.<tailnet>.ts.net:8443`. Hay que medir dos cosas antes de creerle —que DJI
    acepte un puerto distinto de 8883, y que Funnel tolere una sesión MQTT de horas,
    para lo que no está diseñado—. Si aguanta, **no hay relay que comprar**.
 
