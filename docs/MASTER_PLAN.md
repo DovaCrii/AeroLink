@@ -158,7 +158,7 @@ ADR-0001 lo prohíbe y está bien así.
 
 `AL-R1` advirtió que el gate de red era el camino crítico y que era *probable*
 que fallara. Se midió y falló. Desde fuera de la red Tailscale, contra la IP
-pública de p340 (`200.54.29.98`):
+pública del sitio:
 
 | Puerto | ICMP | TCP |
 |---|---|---|
@@ -211,7 +211,7 @@ entrada HTTPS. Lo verificado en el despliegue:
 
 - Migraciones aplicadas sobre **Postgres** hasta `20260813_0002`; `/health` y
   `/ready` responden.
-- `https://p340.tailccd107.ts.net/aerolink` sirve la H5 **sin credenciales**
+- `https://<vm>.<tailnet>.ts.net/aerolink` sirve la H5 **sin credenciales**
   (`pilot2-connectivity`) y `/` sigue sirviendo AeroControl intacto.
 - El **preflight de licencia quedó sin bloqueadores**: las cuatro comprobaciones en
   `pass`, incluida `https_endpoint`. Lo único que falta de `AL-004` es que DJI acepte

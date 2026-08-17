@@ -91,7 +91,7 @@ o `available 0`.
 ## Gate de red
 
 **Resuelto con veredicto negativo el 2026-08-10 (AL-003).** Medido desde fuera de
-la red Tailscale contra la IP pública de p340 (`200.54.29.98`): ni 443 ni 8883
+la red Tailscale contra la IP pública del sitio: ni 443 ni 8883
 aceptan TCP entrante. Tailscale Funnel no abre puertos en esa IP —tunela saliente
 hacia el relay de Tailscale— y sirve HTTPS solamente, así que **ningún control DJI
 puede alcanzar un broker alojado en p340**.

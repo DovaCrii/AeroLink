@@ -36,6 +36,49 @@ es de AeroControl y pedirlo aquí responde `403`. Ver
 Requiere configurar `SERVICE_TOKEN` y `SERVICE_TOKEN_WORKSPACE`; sin ellos el
 endpoint responde `503` y no expone nada.
 
+## Qué resuelve
+
+Hoy la constancia de un vuelo depende de que alguien saque una captura de pantalla y
+llene una planilla en terreno. Eso falla de tres formas conocidas:
+
+- **La telemetría se pierde.** Lo que el control sabe —posición, altura, eventos,
+  estado de las baterías— vive en la app de DJI y no queda en ninguna parte
+  consultable después.
+- **El conteo de ciclos de batería se lleva a mano** y se desvía de la realidad de
+  inmediato, aunque DJI lo reporte de forma nativa. Es evidencia ISO 7.1.3 apoyada en
+  memoria humana.
+- **Una captura de pantalla no es evidencia verificable.** No hay hash, no hay
+  cadena, no hay forma de demostrar que el archivo es el original.
+
+AeroLink toma esas tres cosas en el origen: reconstruye la sesión de vuelo desde los
+mensajes del propio equipo, guarda el mensaje original con su **SHA-256** antes de
+interpretarlo, y publica el inventario que masterea para que AeroControl lo refleje sin
+que nadie lo teclee dos veces.
+
+## Puesta en marcha
+
+Desarrollo local, con Docker:
+
+```bash
+cp .env.example .env          # completar los valores; .env nunca va a Git
+docker compose up --build --detach api minio
+curl -sS http://127.0.0.1:8081/health
+```
+
+`postgres` y `migrate` entran como dependencias de `api`; `migrate` corre
+`alembic upgrade head` y el resto espera a que termine bien. El `worker` requiere un
+relay MQTT al que conectarse y **falla al arrancar sin él**, a propósito.
+
+Pruebas y gate de calidad, sin Docker:
+
+```bash
+uv sync --all-groups
+uv run ruff check . && uv run ruff format --check . && uv run pytest
+```
+
+Para la VM compartida con AeroControl, ver el
+[runbook de despliegue](docs/operations/DEPLOY_P340.md).
+
 ## Documentación y seguimiento
 
 - [Plan maestro](docs/MASTER_PLAN.md) — milestones M0–M4 e issues por bloque.

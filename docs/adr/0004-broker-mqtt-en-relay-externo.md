@@ -10,7 +10,7 @@ ADR-0001. Queda pendiente elegir el proveedor concreto del relay.
 El plan maestro dejó `AL-003` (ingreso público de p340) como gate de M1, y la
 revisión externa lo elevó a bloqueante (`AL-R1`) porque era *probable* que
 fallara. Ya no es una probabilidad: el 2026-08-10 se midió desde fuera de la red
-Tailscale contra la IP pública de p340 (`200.54.29.98`).
+Tailscale contra la IP pública del sitio.
 
 | Puerto | ICMP | TCP |
 |---|---|---|
@@ -99,16 +99,16 @@ Funnel no sólo sirve HTTPS: **también reenvía TCP**, en los puertos 443, 8443
 10000.
 
 Eso obliga a precisar la afirmación de arriba. Lo que `AL-003` midió el
-2026-08-10 fue **TCP directo contra la IP pública del sitio** (`200.54.29.98`), y
+2026-08-10 fue **TCP directo contra la IP pública del sitio**, y
 ahí sigue siendo cierto que no entra nada. Pero Funnel no publica por esa IP:
 publica por la infraestructura de ingreso de Tailscale —comprobado el 2026-08-13,
-`https://p340.tailccd107.ts.net/health/` responde 200 desde internet mientras el
+`https://<vm>.<tailnet>.ts.net/health/` responde 200 desde internet mientras el
 443 de la IP pública está cerrado—. Decir *"no existe ningún camino para que un
 control DJI alcance un broker alojado en p340"* es correcto para TCP directo y
 **demasiado fuerte** en general: queda por descartar el ingreso por Funnel.
 
 La opción es: `sudo tailscale funnel --bg --tls-terminated-tcp 8443` hacia un
-broker local, con Pilot 2 conectando a `p340.tailccd107.ts.net:8443`. Tailscale
+broker local, con Pilot 2 conectando a `<vm>.<tailnet>.ts.net:8443`. Tailscale
 termina el TLS con su certificado válido y entrega TCP plano en loopback, así que
 el broker no necesita certificado propio.
 
