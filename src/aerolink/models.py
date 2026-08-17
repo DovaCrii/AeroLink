@@ -102,7 +102,9 @@ class Device(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("workspaces.id"), index=True
     )
-    kind: Mapped[DeviceKind] = mapped_column(Enum(DeviceKind, name="device_kind"))
+    kind: Mapped[DeviceKind] = mapped_column(
+        Enum(DeviceKind, name="device_kind", values_callable=_enum_values)
+    )
     serial_number: Mapped[str] = mapped_column(String(120), index=True)
     model: Mapped[str | None] = mapped_column(String(150), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="unknown", index=True)
