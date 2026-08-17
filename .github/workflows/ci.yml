@@ -24,3 +24,42 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
+
+  # AL-108. La suite de arriba corre sobre sqlite en memoria y es la rápida; ésta
+  # corre sobre el motor de producción y es la que decide. Existe porque un
+  # `?kind=battery` respondió 500 en la VM con esa suite en verde: sqlite degrada
+  # `sa.Enum` a VARCHAR y aceptaba lo que Postgres rechaza.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aerolink
+          POSTGRES_USER: aerolink
+          POSTGRES_PASSWORD: aerolink
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aerolink -d aerolink"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://aerolink:aerolink@127.0.0.1:5432/aerolink
+      TEST_DATABASE_URL: postgresql+psycopg://aerolink:aerolink@127.0.0.1:5432/aerolink
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-groups
+      # El esquema lo construyen las migraciones, no `create_all`: ahí está el
+      # valor. `create_all` crearía los tipos enumerados desde el modelo, modelo y
+      # esquema coincidirían por construcción, y la deriva entre ambos —el defecto
+      # real— seguiría invisible.
+      - run: uv run alembic upgrade head
+      - run: uv run pytest
