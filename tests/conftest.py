@@ -27,6 +27,7 @@ sigue siendo la mejora pendiente.
 
 from __future__ import annotations
 
+import os
 import uuid
 
 import pytest
@@ -46,6 +47,29 @@ SERVICE_TOKEN = "test-token-not-a-real-secret"
 
 @pytest.fixture
 def engine():
+    """La base de las pruebas: sqlite por omisión, Postgres si se pide (AL-108).
+
+    Con `TEST_DATABASE_URL` apuntando a Postgres, **el esquema no se crea acá**: se
+    espera que ya exista, construido por `alembic upgrade head`. Esa diferencia es
+    todo el valor del modo Postgres. `Base.metadata.create_all` crea los tipos
+    enumerados a partir del modelo, así que modelo y esquema coinciden por
+    construcción y el defecto que costó un 500 en producción —etiquetas del modelo
+    distintas de las que creó la migración— sería invisible igual que en sqlite.
+
+    Cada prueba deja la base vacía al terminar, en orden inverso de dependencias,
+    en vez de recrear el esquema: recrearlo perdería justamente lo que se quiere
+    verificar.
+    """
+    test_url = os.environ.get("TEST_DATABASE_URL")
+    if test_url:
+        engine = create_engine(test_url)
+        yield engine
+        with engine.begin() as connection:
+            for table in reversed(Base.metadata.sorted_tables):
+                connection.execute(table.delete())
+        engine.dispose()
+        return
+
     # StaticPool is mandatory: without it every connection gets its own empty
     # in-memory database and the fixture silently tests nothing.
     engine = create_engine(
